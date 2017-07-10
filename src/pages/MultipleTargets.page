@@ -1,0 +1,23 @@
+<apex:page >
+<a href="" id="ancherId" target="_blank"></a>
+	<script type="text/javascript">
+		var deploymentRe1sultId =  '{!$CurrentPage.parameters.deploymentResId}';
+	
+		var idArray = deploymentRe1sultId.split(',');
+		console.log('array ' + idArray);
+		for(var i=0; i< idArray.length; i++) {
+			console.log('/' + idArray[i]);
+			if(i == idArray.length-1) {
+				document.getElementById("ancherId").setAttribute('target', '_self');
+			}
+			document.getElementById("ancherId").href = '/' + idArray[i];
+			document.getElementById("ancherId").click();
+			
+			
+			//window.open('https://c.ap5.visual.force.com/'+idArray[i], 'popUpWindow','height=400,width=600,left=10,top=10,,scrollbars=yes,menubar=no');
+		}
+	</script>
+
+		
+
+</apex:page>

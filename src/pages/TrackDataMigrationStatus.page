@@ -1,0 +1,405 @@
+<!-- 
+/** 
+* Description   :   This page provides the functionality to show progress bar for the deployment progress in target org. 
+* 
+* Created By    :   Romesh Kumar (Simplyforce Technology) 
+* 
+* Created Date  :   01/18/2016 
+* 
+* Revision Log  :   V1.0 Created
+*
+* UpdatedBy     :  
+*
+* Deprecated    :  
+**/
+-->
+
+<apex:page standardController="Deployment_Result__c" id="mainPge"
+    extensions="TrackDataMigrationStatusExt"
+    tabStyle="Deployment_Result__c" showheader="false"
+    action="{!getDeploymentInfo}">
+
+    <apex:stylesheet value="{!URLFOR($Resource.Prodly_Moover_JQuery, 'JQuery/jquery-ui.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.Prodly_Moover_JQuery, 'JQuery/style.css')}" />
+    <apex:includeScript value="{!URLFOR($Resource.Prodly_Moover_JQuery, 'JQuery/jquery-1.12.4.js')}" />
+    <apex:includeScript value="{!URLFOR($Resource.Prodly_Moover_JQuery, 'JQuery/jquery-ui.js')}" />
+
+    <apex:stylesheet value="{!URLFOR($Resource.SLDS_Resource, 'assets/styles/salesforce-lightning-design-system-vf.css')}" />
+
+    <script>
+        $(document).ready(function() {
+            progressRef('{!completedDatSetCount}', '{!totalDataSetCount}');
+            if(progressCounter == 100) {
+            	clearInterval(myVar);
+            }
+        });
+
+        var progressCounter = 0;
+
+        var chkFlag = true;
+        var expandedComponentIds = new Array();
+        
+
+        //Functon to refresh Prgress bar for Deployment process
+        function progressRef(data1, data2) {
+
+            var completedDataSet = parseInt(data1);
+            var totalDataSet = parseInt(data2);
+            
+			console.log('completedDataSet'+completedDataSet);
+			console.log('totalDataSet'+totalDataSet);
+			
+            if (totalDataSet > 0)
+                progressCounter = Math
+                        .round((completedDataSet / totalDataSet) * 100);
+            else
+                progressCounter = parseInt(0);
+
+            console.log('progressCounter:---' + progressCounter);
+
+            if (progressCounter == undefined || progressCounter == null) {
+                progressCounter = 0;
+                console.log('progressCounter inside:---' + progressCounter);
+            }
+
+            $(".progress-text").text(progressCounter + '%');
+
+            $("#progressbar").progressbar({
+                value : progressCounter
+            });
+            
+        }
+       	
+        var myVar = setInterval(function() {
+			if (progressCounter == 100){
+			  		chkFlag = false;
+			  		window.top.location.reload();
+            }
+            console.log('progressCounter:--'+progressCounter);
+			
+			console.log('chkFlag:--'+chkFlag);
+            if (chkFlag == true)
+               progressRefresh();
+
+            
+                
+		}, 5000);
+        
+
+        /*function expandConlllapseRecords(){
+            if(expandedComponentIds.length > 0){
+                for(var i = 0; i < expandedComponentIds.length; i++){
+                    var spitId = expandedComponentIds[i].split('show');
+                    
+                    var el = document.getElementById(spitId[0]);
+                    
+                    if (el.style.display != 'none') {
+                        el.style.display = 'none';
+                    } else {
+                        el.style.display = '';
+                        
+                    }
+                    
+                    var e2 = document.getElementById(spitId[1]);
+                    
+                    if (e2.style.display != 'none') {
+                        e2.style.display = 'none';  
+                    } else {
+                        e2.style.display = '';
+                        
+                    }
+                    console.log('e2.style.display:---'+e2.style.display);
+                    
+                    var e3 = document.getElementById(spitId[2]);
+                    if (e2.style.display != 'none') {
+                        e3.style.display = 'none';
+                    } else {
+                        e3.style.display = '';
+                    }
+                    
+                }
+            }
+        }*/
+
+
+
+       /* function switchCollapse(obj, obj1, obj2) {
+        
+            console.log('Obj 1:---'+obj1);
+            console.log('obj1:---'+obj1);
+            console.log('obj2:---'+obj2);
+            
+            var str = '';
+            var el = document.getElementById(obj);
+            str = obj + 'show';
+            
+            if (el.style.display != 'none') {
+                el.style.display = 'none';
+            } else {
+                el.style.display = '';
+                
+            }
+            
+            var e2 = document.getElementById(obj1);
+            str += obj1 + 'show';
+            
+            if (e2.style.display != 'none') {
+                e2.style.display = 'none';  
+            } else {
+                e2.style.display = '';
+                
+            }
+            console.log('e2.style.display:---'+e2.style.display);
+            
+            var e3 = document.getElementById(obj2);
+            str += obj2;
+            if (e2.style.display != 'none') {
+                e3.style.display = 'none';
+            } else {
+                e3.style.display = '';
+                
+            }
+    	}*/
+        
+        function setIndexToController(index) {
+            
+         	 //Calling method and passing id to it.
+             setIndexNum(index);
+        }
+        
+        function collapseDateSetBar(){
+        	collapseBar();
+        }
+        
+    </script>
+
+    <style>
+.Custom46Tab .listViewport .subNav .linkBar, .Custom46Tab .mComponent .cHeader,
+    .Custom46Tab .genericTable, .Custom46Tab .bSubBlock, .Custom46Tab .bPageBlock
+    {
+    border-top: 0px;
+}
+
+.bPageBlock {
+    border: 0px !important;
+    border-radius: 0px !important;
+}
+
+.slds-button slds-button--neutral cuf-publisherShareButton uiButton--default uiButton--brand uiButton
+    {
+    display: none !important;
+}
+
+#mainPge {
+    width: 500px !important;
+}
+
+.slds .slds-section-title--divider:first-child {
+    margin-top: 0px;
+    margin-left: -16px;
+}
+
+.slds .slds-section-title--divider {
+    float: left;
+    width: 100%;
+    margin: 0px;
+    border-bottom: 1px solid #ccc;
+}
+
+.slds .slds-section-title--divider:first-child {
+    margin-top: 0px;
+    margin-left: 0px;
+}
+
+.ui-widget-header {
+    border: 1px solid #dddddd;
+    color: #ffffff;
+    font-weight: bold;
+    background: #1e5799; /* Old browsers */
+    background: -moz-linear-gradient(top, #1e5799 0%, #2989d8 57%, #55b2d1 87%, #7db9e8
+        100%); /* FF3.6-15 */
+    background: -webkit-linear-gradient(top, #1e5799 0%, #2989d8 57%, #55b2d1 87%,
+        #7db9e8 100%); /* Chrome10-25,Safari5.1-6 */
+    background: linear-gradient(to bottom, #1e5799 0%, #2989d8 57%, #55b2d1 87%, #7db9e8
+        100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#1e5799',
+        endColorstr='#7db9e8', GradientType=0);
+}
+
+.ui-widget-header {
+    background-color: lightgrey;
+    background-image: linear-gradient(45deg, rgba(0, 0, 0, 0.035) 25%,
+        transparent 25%, transparent 50%, rgba(0, 0, 0, 0.035) 50%,
+        rgba(0, 0, 0, 0.035) 75%, transparent 75%, transparent);
+    background-size: 64px 64px;
+}
+
+#progressbar {
+    border: 1px solid lightblue;
+    padding: 2px 0px 0px 1px;
+    height: 34px;
+}
+
+.apexp .bPageBlock.apexDefaultPageBlock .pbBody {
+    margin: 0px 12px 7px;
+}
+
+.progress-text {
+    width: 100%;
+    float: left;
+    text-align: center;
+    padding: 5px;
+    font-weight: bold;
+    font-size: 14px;
+    color: #1869fc;
+    margin-top: 0px;
+}
+</style>
+
+	<!-- Page Messages -->
+    <apex:pageMessages id="deployMsg" />
+    
+    <!--  main Div -->
+    <div id="sldDiv" class="slds" style="overflow: auto; width: 100%; height: 100%">
+
+        <apex:form id="frm">
+
+			<!-- Controller funciton to refresh the data and progress bar too -->
+            <apex:actionFunction name="progressRefresh" reRender="inlinetablesec,inlinetable,plusimage,minusimage" action="{!getDeploymentInfo}" oncomplete="progressRef('{!completedDatSetCount}', '{!totalDataSetCount}' );"/>
+            
+            <!-- Controller funciton to refresh the data and progress bar too -->
+            <apex:actionFunction name="collapseBar" reRender="inlinetable,plusimage,minusimage,inlinetablesec" action="{!setCollapse}" />
+           
+            <!-- Method to set the the value to true for which data set should expand -->
+            <apex:actionFunction action="{!setIndex}" name="setIndexNum" rerender="inlinetablesec,plusimage,minusimage,inlinetable" > 
+            	<apex:param name="indexParam"  value=""/>
+           	</apex:actionFunction>
+			
+			
+			<!-- Page block having content of page -->
+            <apex:pageBlock id="pB1" mode="edit ">
+                
+                <!--  Having Page Block header -->
+                <apex:outputPanel styleClass="slds-section-title--divider" id="plusimage" layout="block" style="width: 100%; float: left;cursor:pointer !important;display:{!IF(NOT(collapseDataSet), '', 'none')};" onclick="collapseDateSetBar();" >
+                    <div style="width: 3%; float: left;">
+
+                        <apex:image style="padding-top:3px;" url="{!$Resource.Plus_Image}" />
+                    </div>
+                    <div class="slds-grid">
+                        <div class="slds-col slds-has-flexi-truncate">
+                            <h1 class="slds-text-heading--medium slds-truncate"
+                                style="text-transform: none !important;">Progress Bar</h1>
+                        </div>
+                    </div>
+                </apex:outputPanel>
+
+                <!--  Collapse functionality on the Prgress Bar Header -->
+                <apex:outputPanel styleClass="slds-section-title--divider" id="minusimage" style="display:{!IF(collapseDataSet, '', 'none')}; width: 100%; float: left;cursor:pointer !important;" onclick="collapseDateSetBar();" layout="block" >
+                    <div style="width: 3%; float: left;">
+
+                        <apex:image style="padding-top:3px;"
+                            url="{!$Resource.Minus_Image}" />
+                    </div> 
+                    <div class="slds-grid">
+                        <div class="slds-col slds-has-flexi-truncate">
+                            <h1 class="slds-text-heading--medium slds-truncate"
+                                style="text-transform: none !important;">Progress Bar</h1>
+                        </div>
+                    </div>
+
+               </apex:outputPanel>
+				
+				<!-- Progress Bar  -->
+                <div id="progressbar">
+
+                    <div class="progress-text"></div>
+                </div>
+
+				<!-- Data Set result table with collapse expand feature -->
+                <apex:outputpanel id="inlinetable" style="display:{!IF(collapseDataSet, '', 'none')};">
+                   <apex:variable var="index" value="{!0}"/>
+					
+                    <apex:repeat value="{!dataSetDetails}" var="dataSetResult">
+
+                        <apex:outputPanel styleClass="slds-section-title--divider" id="plusimage" layout="block" style="display:{!IF(NOT(dataSetResult.display), '', 'none')}; width: 100%; float:left;cursor:pointer !important;" onclick="setIndexToController('{!index}')">
+                            <div style="width: 3%; float: left; cursor: pointer;">
+                                <apex:image url="{!$Resource.Plus_Image}" />
+                            </div>
+                            <div style="width: 97%; float: left;">
+                                {!dataSetResult.dataSetDetail.Data_Set__r.Name} -
+                                {!dataSetResult.dataSetDetail.Status__c}</div>
+                        </apex:outputPanel>
+
+                        <apex:outputPanel styleClass="slds-section-title--divider" id="minusimage" style="display:{!IF(dataSetResult.display, '', 'none')}; width: 100%; float: left;cursor:pointer !important;" onclick="setIndexToController('{!index}')" layout="block" >
+                            <div style="width: 3%; float: left; cursor: pointer;">
+                                <apex:image url="{!$Resource.Minus_Image}" />
+                            </div>
+                            <div style="width: 97%; float: left;">
+                                {!dataSetResult.dataSetDetail.Data_Set__r.Name} -
+                                {!dataSetResult.dataSetDetail.Status__c}</div>
+                        </apex:outputPanel>
+                        <apex:outputpanel id="inlinetablesec" style="display:{!IF(dataSetResult.display, '', 'none')};">
+                            <apex:outputPanel rendered="{!dataSetResult.dataSetDetail.Deployment_Batch_Results__r.size > 0 && dataSetResult.dataSetDetail.Status__c == 'Finished'}">
+
+                                <table
+                                    class="slds-table slds-table--bordered slds-table--cell-buffer">
+                                    <thead>
+                                        <tr class="slds-text-title--caps">
+                                            <th scope="col" style="width: 33%">
+                                                <div class="slds-truncate"
+                                                    title="Deployment Batch Result Name">Deployment Batch
+                                                    Result Name</div>
+                                            </th>
+                                            <th scope="col" style="width: 33%">
+                                                <div class="slds-truncate" title="Object Name">Object
+                                                    Name</div>
+                                            </th>
+                                            <th scope="col" style="width: 34%">
+                                                <div class="slds-truncate" title="Result">Result</div>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <apex:repeat value="{!dataSetResult.dataSetDetail.Deployment_Batch_Results__r}"
+                                            var="dataSetBatchResult">
+                                            <tr>
+                                                <td data-label="Deployment Result Name" style="width: 33%">
+                                                    <div class="slds-truncate">
+                                                        <a href="/{!dataSetBatchResult.Id}" target="_blank">{!dataSetBatchResult.Name}</a>
+                                                    </div>
+                                                </td>
+                                                <td data-label="Data Set Name" style="width: 33%">
+                                                    <div class="slds-truncate">{!dataSetBatchResult.Data_Set__r.Name}</div>
+                                                </td>
+
+                                                <td data-label="Data Set Result" style="width: 34%">
+                                                    <div class="slds-truncate">{!dataSetBatchResult.Result__c}</div>
+                                                </td>
+                                            </tr>
+                                        </apex:repeat>
+                                    </tbody>
+                                </table>
+                            </apex:outputPanel>
+                            <apex:outputPanel id="noDataMsg"
+                                rendered="{!dataSetResult.dataSetDetail.Deployment_Batch_Results__r.size == 0 && dataSetResult.dataSetDetail.Status__c == 'Finished'}">
+                                <table
+                                    class="slds-table slds-table--bordered slds-table--cell-buffer">
+
+                                    <tbody>
+                                        <tr>
+                                            <td data-label="No Data Msg"
+                                                style="width: 100%; text-align: center;"><apex:outputText style="font-size: 13px; background-color: lightgrey; border-radius: 4px; padding: 3px; font-weight: bold;"
+                                                    value="{!$Label.NO_DATA_MIGRATION_MSG}" /></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </apex:outputPanel>
+                        </apex:outputpanel>
+                        <apex:variable var="index" value="{!index+1}"/>
+						
+                    </apex:repeat>
+                </apex:outputpanel>
+            </apex:pageBlock>
+        </apex:form>
+    </div>
+</apex:page>

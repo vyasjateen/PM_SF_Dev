@@ -1,0 +1,340 @@
+<!-- 
+*   Purpose     :   This page is the detail page of Deployment Result (Custom Object)
+*
+*   Created Date    :   
+
+*   Created By      :   Rohit
+
+*   Version         :   V1.0
+    
+*   Modified By     :   Romesh Kumar
+                        Description :-  Made UI changes to look Deployment Result page better.
+*
+*
+ -->
+
+<apex:page standardController="Deployment_Result__c"
+    tabstyle="Deployment_Result__c"
+    extensions="DeploymentResultExtension,TrackDataMigrationStatusExt"
+    >
+
+    <head>
+       
+        <apex:slds />
+    </head>
+    <style>
+        .Contentt-wrapper {
+            width: 100%;
+            float: left;
+            overflow: auto;
+        }
+        
+        .apexp .bPageBlock.apexDefaultPageBlock .pbBody {
+             margin: 0px !important;
+        }
+        
+        .relatedListSec{
+            float: left;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+    </style>
+    <body>
+
+        <div class="slds-page-header" role="banner">
+            <div id="j_id0:theForm:navPanel">
+                <nav class="slds-m-bottom--xx-small" role="navigation">
+                    <p class="slds-assistive-text" id="bread-crumb-label">You are
+                        here:</p>
+                    <ol aria-labelledby="bread-crumb-label"
+                        class="slds-breadcrumb slds-list--horizontal">
+                    </ol>
+                </nav>
+            </div>
+            <div class="slds-grid">
+                <div class="slds-col slds-has-flexi-truncate">
+                    <h1 class="slds-text-heading--medium slds-truncate"
+                        title="Data Set - ">Deployment Result</h1>
+                </div>
+            </div>
+        </div>
+            <apex:outputPanel id="detailPage">
+                <apex:pageMessages id="valMSG" />
+                <div class="slds-panel slds-grid slds-grid--vertical slds-nowrap">
+                    <div class="slds-form--stacked slds-grow slds-scrollable--y">
+                        <apex:outputPanel id="deploymentResultDetail" layout="block">
+                            <div class="slds-panel__section" id="">
+    
+                                <div
+                                    class="slds-form-element slds-hint-parent slds-has-divider--bottom"
+                                    style="padding: 15px; text-align: center;">
+                                    <apex:form id="mainForm">
+    
+                                        <apex:actionPoller action="{!disablePollerFunction}"
+                                            enabled="{!pollerRequest}" interval="5"
+                                            reRender="deploymentResultDetail,blockRequest"
+                                            oncomplete="loadPage();" />
+                                        <div class="slds-align--absolute-center">
+                                            <div class="slds-grid">
+                                                <div class="slds-button-group">
+    
+                                                    <apex:actionFunction action="{!stopService}"
+                                                        name="stopDeploy" status="waitMsg">
+                                                    </apex:actionFunction>
+    
+                                                    <!--  Command Button -->
+                                                    <apex:commandButton value="Delete" action="{!delete}"
+                                                        styleClass="slds-button slds-button--neutral" />
+    
+                                                    <apex:commandButton styleClass="slds-button slds-button--neutral" value="Pause"
+                                                        action="{!pauseService}" id="pauseService"
+                                                        reRender="deploymentResultDetail,valMSG"
+                                                        rendered="{!NOT(pauseService)}" />
+                                                    <apex:commandButton styleClass="slds-button slds-button--neutral"
+                                                        value="Resume" action="{!resumeService}" id="resumeService"
+                                                        rendered="{!NOT(resumeService)}" />
+                                                    <apex:commandButton styleClass="slds-button slds-button--neutral" value="Stop"
+                                                        onclick="stopDeployment();" id="stopService"
+                                                        rendered="{!NOT(stopService)}"
+                                                        reRender="deploymentResultDetail,valMSG" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <script>
+                                            function stopDeployment() {
+                                                if (confirm('Are you sure you want to stop this deployment?'))
+                                                    stopDeploy();
+                                            }
+    
+                                            function loadPage() {
+                                                var chk = '{!pollerRequest}';
+                                                refreshPage(chk);
+                                            }
+                                        </script>
+                                    </apex:form>
+    
+                                </div>
+    
+    
+                                <div
+                                    class="slds-form-element slds-hint-parent slds-has-divider--bottom"
+                                    style="display: inline-block; width: 47%;">
+    
+                                    <span class="slds-form-element__label">Deployment Result
+                                        Name</span>
+    
+                                    <div class="slds-form-element__control">
+    
+                                        <span class="slds-form-element__static"><apex:outPutField label="false" value="{!Deployment_Result__c.Name}" /></span>
+    
+                                    </div>
+    
+                                </div>
+                                
+                                <apex:outputPanel id="blockRequest" rendered="{!pollerRequest}">
+                                    <div class="slds-spinner_container">
+                                        <div role="status" class="slds-spinner slds-spinner--medium">
+                                            <span class="slds-assistive-text">Loading</span>
+                                            <div class="slds-spinner__dot-a"></div>
+                                            <div class="slds-spinner__dot-b"></div>
+                                        </div>
+                                    </div>
+                                </apex:outputPanel>
+    
+    
+                                <div
+                                    class="slds-form-element slds-hint-parent slds-has-divider--bottom"
+                                    style="display: inline-block; width: 47%;">
+    
+                                    <span class="slds-form-element__label">Owner</span>
+    
+                                    <div class="slds-form-element__control">
+    
+                                        <span class="slds-form-element__static"><apex:outPutField label="false" value="{!Deployment_Result__c.OwnerId}" /></span>
+    
+                                    </div>
+    
+                                </div>
+    
+    
+                                <div
+                                    class="slds-form-element slds-hint-parent slds-has-divider--bottom"
+                                    style="display: inline-block; width: 47%;">
+    
+                                    <span class="slds-form-element__label">Source Connection</span>
+    
+                                    <div class="slds-form-element__control">
+    
+                                            <span class="slds-form-element__static"><apex:outPutField label="false"
+                                                    value="{!Deployment_Result__c.Source_Connection__c}" /></span>
+        
+                                        </div>
+        
+                                    </div>
+        
+                                    <div
+                                        class="slds-form-element slds-hint-parent slds-has-divider--bottom"
+                                        style="display: inline-block; width: 47%;">
+        
+                                        <span class="slds-form-element__label">Target Connection</span>
+        
+                                        <div class="slds-form-element__control">
+    
+                                        <span class="slds-form-element__static"><apex:outPutField label="false"
+                                                value="{!Deployment_Result__c.Target_Connection__c}" /></span>
+    
+                                    </div>
+    
+                                </div>
+    
+                                <div
+                                    class="slds-form-element slds-hint-parent slds-has-divider--bottom"
+                                    style="display: inline-block; width: 47%;">
+    
+                                    <span class="slds-form-element__label">Status</span>
+    
+                                    <div class="slds-form-element__control">
+    
+                                        <span class="slds-form-element__static"><apex:outPutField label="false"
+                                                value="{!Deployment_Result__c.Status__c}" /></span>
+    
+                                    </div>
+    
+                                </div>
+                                <div
+                                    class="slds-form-element slds-hint-parent slds-has-divider--bottom"
+                                    style="display: inline-block; width: 47%;">
+    
+                                    <span class="slds-form-element__label">Result</span>
+    
+                                    <div class="slds-form-element__control">
+    
+                                        <span class="slds-form-element__static"><apex:outPutField label="false"
+                                                value="{!Deployment_Result__c.Result__c}" /></span>
+    
+                                    </div>
+    
+                                </div>
+                                <div
+                                    class="slds-form-element slds-hint-parent slds-has-divider--bottom"
+                                    style="display: inline-block; width: 47%;">
+    
+                                    <span class="slds-form-element__label">Error</span>
+    
+                                    <div class="slds-form-element__control">
+    
+                                        <span class="slds-form-element__static"><apex:outPutField label="false"
+                                                value="{!Deployment_Result__c.Error__c}" />&nbsp;</span>
+    
+                                    </div>
+    
+                                </div>
+                                <div
+                                    class="slds-form-element slds-hint-parent slds-has-divider--bottom"
+                                    style="display: inline-block; width: 47%;">
+    
+                                    <span class="slds-form-element__label">Created By</span>
+    
+                                    <div class="slds-form-element__control">
+    
+                                        <span class="slds-form-element__static"><apex:outPutField label="false"
+                                                value="{!Deployment_Result__c.CreatedById}" /></span>
+    
+                                    </div>
+                                </div>
+                                
+                            </div>
+                            
+                            
+                        </apex:outputPanel>
+                    </div>
+    
+    
+                </div>
+            </apex:outputPanel>
+            <apex:outputPanel StyleClass="Contentt-wrapper" layout="block">
+                                
+                <apex:include pageName="TrackDataMigrationStatus"/>
+                <!--   <apex:iframe src="/apex/TrackDataMigrationStatus?id={!$CurrentPage.parameters.id}"/>-->
+            </apex:outputPanel>
+            
+                    
+                
+                <apex:outputPanel styleClass="relatedListSec" id="relatedList">
+                    
+                    <div class="slds-page-header" role="banner">
+                        <div id="j_id0:theForm:navPanel">
+                            <nav class="slds-m-bottom--xx-small" role="navigation">
+                                <p class="slds-assistive-text" id="bread-crumb-label">You are
+                                    here:</p>
+                                <ol aria-labelledby="bread-crumb-label"
+                                    class="slds-breadcrumb slds-list--horizontal">
+                                </ol>
+                            </nav>
+                        </div>
+                        <div class="slds-grid">
+                            <div class="slds-col slds-has-flexi-truncate">
+                                <h1 class="slds-text-heading--medium slds-truncate"
+                                    title="Data Set - ">Deployment Data Set Results</h1>
+                            </div>
+                        </div>
+                    </div>
+
+                    
+                    <table class="slds-table slds-table--bordered slds-table--cell-buffer">
+                        <thead>
+                            <tr class="slds-text-title--caps">
+                                <th scope="col" style="width:20%">
+                                    <div class="slds-truncate" title="Deployment Batch Result Name">Deployment Data Set Result Name</div>
+                                </th>
+                                <th scope="col" style="width:20%">
+                                    <div class="slds-truncate" title="Data Set">Data Set</div>
+                                </th>
+                                <th scope="col" style="width:20%">
+                                    <div class="slds-truncate" title="Result">Result</div>
+                                </th>
+                                <th scope="col" style="width:10%">
+                                    <div class="slds-truncate" title="Status">Status</div>
+                                </th>
+                                <th scope="col" style="width:30%">
+                                    <div class="slds-truncate" style="text-align: center;" title="Error">Error</div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <apex:repeat value="{!Deployment_Result__c.Deployment_Data_Set_Results__r}" var="dataSetBatchResult" >
+                                <tr>
+                                    <td data-label="Deployment Result Name" style="width:20%">
+                                        <div class="slds-truncate" ><a href="/{!dataSetBatchResult.Id}" target="_blank">{!dataSetBatchResult.Name}</a></div>
+                                    </td>
+                                    <td data-label="Data Set" style="width:20%">
+                                        <div class="slds-truncate" ><a href="/{!dataSetBatchResult.Data_Set__c}" target="_blank">{!dataSetBatchResult.Data_Set__r.Name}</a>
+                                        </div>
+                                    </td>
+                                  
+                                    <td data-label="Data Set Result" style="width:20%">
+                                        <div class="slds-truncate" >{!dataSetBatchResult.Result__c}</div>
+                                    </td>
+                                    
+                                    <td data-label="Data Set Status" style="width:10%">
+                                        <div class="slds-truncate" >{!dataSetBatchResult.Status__c}</div>
+                                    </td>
+                                    
+                                    <td data-label="Data Set Error" style="width:30%; ">
+                                        <div class="slds-truncate" style="white-space: normal;">{!dataSetBatchResult.Error__c}</div>
+                                    </td>
+                                </tr>
+                            </apex:repeat>
+                        </tbody>
+                    </table>
+                </apex:outputPanel>
+            
+    </body>
+    <script>
+        function refreshPage(chkflag) {
+            if (chkflag == 'false')
+                window.location.href = window.location.href;
+        }
+    </script>
+</apex:page>
