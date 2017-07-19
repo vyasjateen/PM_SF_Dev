@@ -55,7 +55,7 @@
             <div class="slds-grid">
                 <div class="slds-col slds-has-flexi-truncate">
                     <h1 class="slds-text-heading--medium slds-truncate"
-                        title="Data Set - ">Deployment Result</h1>
+                        title="Deployment Result">Deployment Result</h1>
                 </div>
             </div>
         </div>
@@ -276,7 +276,7 @@
                         <div class="slds-grid">
                             <div class="slds-col slds-has-flexi-truncate">
                                 <h1 class="slds-text-heading--medium slds-truncate"
-                                    title="Data Set - ">Deployment Data Set Results</h1>
+                                    title="Deployment Data Set Results">Deployment Data Set Results</h1>
                             </div>
                         </div>
                     </div>

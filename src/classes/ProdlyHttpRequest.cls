@@ -266,17 +266,81 @@ public class ProdlyHttpRequest {
     }
     
     
+    public static String getAccessToken(String requestType, String clientId, String clientScrete, String refreshToken) {
+    	
+    	if(String.isNotBlank(clientId) && String.isNotBlank(requestType) && String.isNotBlank(clientScrete) &&  String.isNotBlank(refreshToken)) {
+    		Http http = new Http();
+	        HttpRequest request = new HttpRequest();
+	        String baseUrl = requestType == 'Production' ? 'https://login.salesforce.com' : 'https://test.salesforce.com';
+	        
+	        request.setMethod('GET');
+	        request.setEndpoint(baseUrl+'/services/oauth2/token');
+	        
+	        String queryString = 'grant_type=refresh_token&client_id='+clientId+'&client_secret='+clientScrete+'&refresh_token='+refreshToken+'&format=json';       
+	        request.setBody(queryString);
+	        HttpResponse res = http.send(request);
+	        String body = (res.getBody());
+		        
+	        if(res.getStatusCode() == 200 && (body != null || body != '') && body.contains('access_token')) { 
+		        String accessT = (body.split('"access_token":"')[1]).split('",')[0];
+		        return accessT;
+	        }
+    	}
+    	return null;    
+    }
+    public static List<Object> doCalloutOrigin(Connection__c con) {
+        
+        String clientId = CustomSettingsUtilities.getInstance().getClientId();
+        String consumerKey = CustomSettingsUtilities.getInstance().getClientSecret();
+        if(String.isNotBlank(clientId) && String.isNotBlank(consumerKey)) {
+	        String accessToken = getAccessToken(con.Org_Type__c,clientId,consumerKey, con.Refresh_Token__c);
+	        
+	        if(String.isNotBlank(accessToken)) {
+	        	Http http = new Http();
+		        HttpRequest request = new HttpRequest();
+		        request.setEndpoint(con.Instance_URL__c+'/services/data/v22.0/sobjects/');
+		        request.setMethod('GET');
+		        request.setHeader('Authorization','Bearer '+accessToken);
+		        HttpResponse res = http.send(request);
+		        String body = (res.getBody());
+		        
+		        if(res.getStatusCode() == 200 && (body != null || body != '')) { 
+			        Map<String, Object> mapOfResult = (Map<String, Object>)JSON.deserializeUntyped(body);
+			        List<Object> lstOfObjects = (List<Object>)mapOfResult.get('sobjects');
+			        return lstOfObjects;
+		        }
+	        }
+        }
+        return null;
+    }
     
-    public static void doCalloutOrigin() {
-    	HttpRequest request = new HttpRequest();
-		request.setEndpoint('https://ap5.salesforce.com/services/data/v22.0/sobjects/');
-		request.setMethod('GET');
-		request.setHeader('Authorization', '00D7F000000rkwd!AQgAQF1P.yhULd3zeOar_PwJ7btzubwEUOVqzqchEu.pdWcn9QC0e_xPfMOqoFxu9_QrwMYx.rEHRbHlksedYhepUyxYa1.F');
-		String body = (new Http()).send(request).getBody();
-		system.debug('******body  **********'+body);
-		//JSONParser jsonParse = JSONParser.parse(body);
-		
-		//system.debug(jsonParse.sobjects);
+    public static Map<String,Object> describeOriginSObject(Connection__c con, String objName) {
+        
+        String clientId = CustomSettingsUtilities.getInstance().getClientId();
+        String consumerKey = CustomSettingsUtilities.getInstance().getClientSecret();
+        if(String.isNotBlank(clientId) && String.isNotBlank(consumerKey)) {
+        	String accessToken = getAccessToken(con.Org_Type__c,clientId,consumerKey, con.Refresh_Token__c);
+        	
+        	if(String.isNotBlank(accessToken)) {
+		        Http http = new Http();
+		        HttpRequest request = new HttpRequest();
+		        request.setEndpoint(con.Instance_URL__c+'/services/data/v22.0/sobjects/'+objName+'/describe');
+		        request.setMethod('GET');
+		        request.setHeader('Authorization','Bearer '+accessToken);
+		        HttpResponse res = http.send(request);
+		        
+		        String body = (res.getBody());
+		        
+		        if(res.getStatusCode() == 200 && (body != null || body != '')) { 
+		            Map<String, Object> mapOfResult = (Map<String, Object>)JSON.deserializeUntyped(body);
+		            return mapOfResult;
+		        }
+		        else {
+		            return new Map<String,Object>();
+		        }
+        	}
+        }
+        return null;
     }
     
 }

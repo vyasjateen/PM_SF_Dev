@@ -194,11 +194,11 @@
                                                     <th scope="col">
                                                         <span class="slds-truncate">Namespace</span>
                                                     </th>
-                                                    
+                                                    <!--  
                                                     <th scope="col">
                                                         <span class="slds-truncate">Records to Deploy</span>
                                                     </th>
-                                                    
+                                                    -->
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -222,14 +222,14 @@
                                                         <td>
                                                             <span class="slds-truncate">{!dataSetWrapper.objectNamespace}</span>
                                                         </td>
-														
+														<!--  
                                                         <td>
                                                             <apex:outputPanel id="queryCountSummaryPanel" layout="block">
                                                                 <span id="recordCountSpan{! dataSetWrapper.index }" class="slds-truncate">{!dataSetWrapper.rootRecordsCount}</span>
                                                                 <span id="recordCountErrorSpan{! dataSetWrapper.index }" style="color: red;" class="slds-truncate">{!dataSetWrapper.queryError}</span>
                                                             </apex:outputPanel>
                                                         </td>
-														
+														-->
                                                     </tr>
                                                 </apex:repeat>
                                             </tbody>

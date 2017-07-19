@@ -48,7 +48,7 @@
                         </div>
                         <div class="slds-col"> 
                             <div class="slds-button-group slds-m-top--large">
-                                <button id="deployButton" onclick="connect(); return false;" class="slds-button slds-button--neutral">Connect</button>
+                                <button id="deployButton" onclick="connect(); return false;" class="slds-button slds-button--neutral" target="_blank">Connect</button>
                             </div>
                         </div>
                     </div>

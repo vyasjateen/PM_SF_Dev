@@ -52,11 +52,23 @@ public with sharing class DeploymentUtils {
         
     public static Boolean isFieldRecordType(Schema.DescribeFieldResult fieldDescribe) {
         return fieldDescribe.getName() == RECORD_TYPE_FIELD_NAME;
-    }   
+    }  
+    
+    //MD-74 Start
+    public static Boolean isFieldRecordType(String str) {
+        return str == RECORD_TYPE_FIELD_NAME;
+    }  
+    //MD-74 End 
         
     public static Boolean isFieldBinary(Schema.DescribeFieldResult fieldDescribe) {
         return String.valueOf( fieldDescribe.getType() ).equals(String.valueOf( Schema.DisplayType.base64 ) );
-    }  
+    } 
+    
+    //MD-74 Start
+    public static Boolean isFieldBinary(String str) {
+        return (str.equals(String.valueOf( Schema.DisplayType.base64 ) ));
+    } 
+    //MD-74  End
         
     /*public static Boolean isFieldGeolocation(Schema.DescribeFieldResult fieldDescribe) {
         return String.valueOf( fieldDescribe.getType() ).equals(String.valueOf( Schema.DisplayType. ) );
@@ -65,6 +77,12 @@ public with sharing class DeploymentUtils {
     public static Boolean isFieldAddress(Schema.DescribeFieldResult fieldDescribe) {
         return String.valueOf( fieldDescribe.getType() ).equals(String.valueOf( Schema.DisplayType.Address ) );
     }
+    
+    //MD-74
+    public static Boolean isFieldAddress(String str) {
+        return str.equals(String.valueOf( Schema.DisplayType.Address ) );
+    }
+    //MD-74
     
     public static Boolean isObjectBinaryRequired(Schema.DescribeSObjectResult objectDescribe) {
         Map<String,Schema.DescribeFieldResult> objectFieldDescribes = DeploymentUtils.getFieldDescribes(objectDescribe);
@@ -79,7 +97,20 @@ public with sharing class DeploymentUtils {
         return false;
     }
     
-    public static Boolean isObjectVisible(Schema.DescribeSObjectResult objectDescribe) {
+     //MD-74
+   /* public static Boolean isObjectVisible(JsonParseFields objectDescribe) {
+        if( ( !objectDescribe.createable && !objectDescribe.updateable ) ||
+            objectDescribe.deprecatedAndHidden ||
+            !objectDescribe.queryable ) {
+            return false;
+        }
+        return true;
+    }*/
+    
+   
+    //MD-74 END
+    
+     public static Boolean isObjectVisible(Schema.DescribeSObjectResult objectDescribe) {
         if( !objectDescribe.isAccessible() ||
             ( !objectDescribe.isCreateable() && !objectDescribe.isUpdateable() ) ||
             objectDescribe.isDeprecatedAndHidden() ||
@@ -88,6 +119,9 @@ public with sharing class DeploymentUtils {
         }
         return true;
     }
+    
+    
+    
 
     public static Boolean isAllowedSystemField(Schema.DescribeFieldResult fieldDescribe, 
         String selectedObjectName, 
@@ -103,15 +137,34 @@ public with sharing class DeploymentUtils {
             return DeploymentUtils.systemAuditFieldNames.contains( fieldDescribe.getName() ) ;
         }
     }
+	
+	//MD-74 Start 
+	 public static Boolean isAllowedSystemField(String str, 
+        String selectedObjectName, 
+        Boolean isAllowAuditFields) {
+        if( !isAllowAuditFields|| !isAllowedSystemFieldObject(selectedObjectName) ) {
+            return false;
+        }
 
+        if( selectedObjectName == 'lead' ) {
+            return DeploymentUtils.systemAuditFieldNames.contains( str ) 
+                || DeploymentUtils.systemLeadAuditFieldNames.contains( str );
+        } else {
+            return DeploymentUtils.systemAuditFieldNames.contains( str ) ;
+        }
+    }
+	//MD-74 END
     public static Boolean isAllowedSystemFieldObject(String objectName) {
         return DeploymentUtils.auditFieldObjects.contains( objectName ) ||
             objectName.endsWith('__c');
     }
 
     public static List<Schema.DescribeFieldResult> getAllDeployableFields(String objectName, Boolean isAllowAuditFields) {
+        
         objectDescribes = DeploymentUtils.getObjectDescribes();
+        
         Schema.DescribeSObjectResult objectDescribe = objectDescribes.get(objectName);
+       
         Map<String,Schema.DescribeFieldResult> objectFieldDescribes = DeploymentUtils.getFieldDescribes(objectDescribe);
 
         String lowerObjectName = objectName.toLowerCase();
@@ -142,6 +195,39 @@ public with sharing class DeploymentUtils {
         
         return deployableFields;
     }
+    
+    //MD-74
+    public static List<Object> getAllDeployableOriginFields(Map<String, Object> mapOriginDescribedSObject1, String objectName, Boolean isAllowAuditFields, Connection__c orgConnection) {
+        
+        //Map<String,Object> mapOriginDescribedSObject1 = ProdlyHttpRequest.describeOriginSObject(orgConnection, objectName);
+        
+        String lowerObjectName = objectName.toLowerCase();
+        List<Object> fieldsAttributesList = (List<object>)mapOriginDescribedSObject1.get('fields');
+        List<Object> deployableFields = new List<Object>();
+        for(Object fds: fieldsAttributesList ) {
+            Map<String, Object> mapFieldAttributes = (Map<String, Object>)fds;
+            
+       	
+            Boolean isLookupField = ((List<Object>)(mapFieldAttributes.get('referenceTo')) != null && ((List<Object>)mapFieldAttributes.get('referenceTo')).size() > 0);
+            Boolean isPolyMorphicLookup = Boolean.valueOf(mapFieldAttributes.get('namePointing'));
+            Boolean isSystemField = DeploymentUtils.systemFieldNames.contains(String.valueOf(mapFieldAttributes.get('name')));
+            Boolean isLeadSystemField = lowerObjectName == 'lead' && 
+            DeploymentUtils.systemLeadFieldNames.contains(String.valueOf(mapFieldAttributes.get('name')));
+            Boolean isAllowedSystemField = DeploymentUtils.isAllowedSystemField(String.valueOf(mapFieldAttributes.get('name')), lowerObjectName, isAllowAuditFields);
+
+            if(isPolyMorphicLookup ||
+                ( ( isSystemField || isLeadSystemField ) && !isAllowedSystemField ) ||
+                Boolean.valueOf(mapFieldAttributes.get('autoNumber')) ||
+                Boolean.valueOf(mapFieldAttributes.get('deprecatedAndHidden'))) {
+                continue;
+            }
+            
+            deployableFields.add(fds);
+        }
+        
+        return deployableFields;
+    }
+    //MD-74
     
     public static Map<String,Schema.DescribeSObjectResult> getVisibleObjectDescribes(Integer startIndex, Integer offset) {
         globalSchema = getGlobalDescribe();
@@ -439,13 +525,12 @@ public with sharing class DeploymentUtils {
         generator.writeEndObject();
     }
     
-    /*This method will be delete
-    */
-    /*public static void generateDeploymentParameter(List<DataSet__c> dataSets,
+    //MD-74
+    public static void generateDeploymentParameter(List<DataSet__c> dataSets, Connection__c localConnection,
         Connection__c sourceConnection, 
         Connection__c targetConnection,
         Id deploymentResultId,
-        JSONGenerator generator) {
+        JSONGenerator generator, Map<String, Object> mapOriginDescribedSObject1) {
 
         DataSet__c rootDataSet = new DataSet__c();
 
@@ -465,7 +550,9 @@ public with sharing class DeploymentUtils {
         generator.writeStringField('submitterId', UserInfo.getUserId());
         generator.writeStringField('submitterEmail', [SELECT Email from User where Id = :UserInfo.getUserId()].Email);
         generator.writeStringField('submitterOrgId', UserInfo.getOrganizationId());
-       
+       	//Jira 284
+       	generator.writeStringField('packageNameSpace', 'null');
+       	generator.writeStringField('isNewRequest', 'true');
         generator.writeFieldName('deploymentDataSets');
         generator.writeStartArray();
         
@@ -485,9 +572,14 @@ public with sharing class DeploymentUtils {
         
         generator.writeFieldName('targetOrgConnection');        
         processConnection(targetConnection, generator);
-       
+        
+		generator.writeFieldName('localOrgConnection');
+        processConnection(localConnection, generator);
+	
         generator.writeEndObject();
-    }*/
+    }
+    //MD-74
+    
     
     private static void processConnection(Connection__c connection, JSONGenerator generator) {
         generator.writeStartObject();
@@ -545,23 +637,200 @@ public with sharing class DeploymentUtils {
 
         if( dataSet.All_Fields__c ) {
             dataSetFields = new List<Data_Set_Field__c>();
+           Connection__c originConnection = [Select Id, Local_Connection__c,Org_Type__c,Refresh_Token__c,Instance_URL__c from Connection__c where Id =: rootDataSet.Origin_Connection__c];
+           if(originConnection.Local_Connection__c) {
+	            List<Schema.DescribeFieldResult> deployableFieldDescribes = DeploymentUtils.getAllDeployableFields( dataSet.ObjectName__c, rootDataSet.Set_Audit_Fields__c);
+	            for( Schema.DescribeFieldResult fieldDescribe : deployableFieldDescribes ) {
+	                Boolean isLookupField = fieldDescribe.getReferenceTo() != null && fieldDescribe.getReferenceTo().size() > 0;
+	                Boolean isAllowedSystemField = DeploymentUtils.isAllowedSystemField(fieldDescribe, lowerObjectName, rootDataSet.Set_Audit_Fields__c);
+	
+	                Data_Set_Field__c dataSetField = getDataSetField(dataSet, fieldDescribe.getName());
+	                if( dataSetField == null &&
+	                    ( ( !fieldDescribe.isUpdateable() && !fieldDescribe.isCreateable() && !isAllowedSystemField ) && fieldDescribe.getName() != 'IsStandard' && !fieldDescribe.isCalculated() ) ) {
+	                    continue;
+	                } else if( dataSetField == null &&
+	                     ( isLookupField && !isAllowedSystemField ) ) {
+	                    continue;
+	                } else if( dataSetField == null ) {
+	                    dataSetField = new Data_Set_Field__c(Name = fieldDescribe.getName(), External_ID__c = false);
+	                }
+	                dataSetFields.add(dataSetField);
+	            }
+            }
+          /*  else {
+            	List<Object> deployableFieldDescribes = DeploymentUtils.getAllDeployableOriginFields( dataSet.ObjectName__c, rootDataSet.Set_Audit_Fields__c,originConnection);
+            	for(Object fds: deployableFieldDescribes ) {
+            		Map<String, Object> mapFieldAttributes = (Map<String, Object>)fds;
             
-            List<Schema.DescribeFieldResult> deployableDieldDescribes = DeploymentUtils.getAllDeployableFields( dataSet.ObjectName__c, rootDataSet.Set_Audit_Fields__c );
-            for( Schema.DescribeFieldResult fieldDescribe : deployableDieldDescribes ) {
-                Boolean isLookupField = fieldDescribe.getReferenceTo() != null && fieldDescribe.getReferenceTo().size() > 0;
-                Boolean isAllowedSystemField = DeploymentUtils.isAllowedSystemField(fieldDescribe, lowerObjectName, rootDataSet.Set_Audit_Fields__c);
+	                Boolean isLookupField = ((List<Object>)(mapFieldAttributes.get('referenceTo')) != null && ((List<Object>)mapFieldAttributes.get('referenceTo')).size() > 0) ;
+	                Boolean isAllowedSystemField = DeploymentUtils.isAllowedSystemField(String.valueOf(mapFieldAttributes.get('name')), lowerObjectName, rootDataSet.Set_Audit_Fields__c);
+	
+	                Data_Set_Field__c dataSetField = getDataSetField(dataSet, String.valueOf(mapFieldAttributes.get('name')));
+	                
+	                if( dataSetField == null &&
+	                    ( ( !Boolean.valueOf(mapFieldAttributes.get('updateable')) && !Boolean.valueOf(mapFieldAttributes.get('createable')) && !isAllowedSystemField ) && String.valueOf(mapFieldAttributes.get('name')) != 'IsStandard' && !Boolean.valueOf(mapFieldAttributes.get('calculated')) ) ) {
+	                    continue;
+	                } else if( dataSetField == null &&
+	                     ( isLookupField && !isAllowedSystemField ) ) {
+	                    continue;
+	                } else if( dataSetField == null ) {
+	                    dataSetField = new Data_Set_Field__c(Name = String.valueOf(mapFieldAttributes.get('name')), External_ID__c = false);
+	                }
+	                dataSetFields.add(dataSetField);
+	            }
+            }*/
+            
+        } else {
+            //if( dataSet.Data_Set_Fields__r.size() >= 250 ) {
+                dataSetFields = DeploymentUtils.queryDataSetFields( dataSet.Id );
+            /*} else {
+                dataSetFields = dataSet.Data_Set_Fields__r;
+            }*/
+        }
+        
+        /*if( dataSetFields.size() == 0 ) {
+            throw new DeploymentException('Please select at least one field for deployment or enable the all fields option for the data set: ' + dataSet.Name);
+        }*/
+        
+        generator.writeFieldName('dataSetFields');
+        generator.writeStartArray();
+        for( Data_Set_Field__c dataSetField : dataSetFields ) {
+            generator.writeStartObject();
+            generator.writeObjectField('name', dataSetField.Name);
+            generator.writeBooleanField('externalId', dataSetField.External_ID__c);
+            generator.writeBooleanField('createMissing', dataSetField.Create_Missing__c);
+            generator.writeBooleanField('syncPicklistValues', dataSetField.Sync_Picklist_Values__c);
+            generator.writeBooleanField('setEmpty', dataSetField.Set_Empty__c);
+            generator.writeBooleanField('scrambleValue', dataSetField.Scramble_Value__c);
+            generator.writeBooleanField('fixedValue', dataSetField.Fixed_Value__c);
+            if( dataSetField.Fixed_Value_Input__c != null ) {
+                generator.writeStringField('fixedValueInput', dataSetField.Fixed_Value_Input__c);
+            }
+            generator.writeEndObject();
+        }
+        generator.writeEndArray();
+        
+        generator.writeFieldName('childDataSetRelationships');
+        generator.writeStartArray();
+        for( Relationship__c childRelationship : dataSet.ChildRelationships__r ) {
+            generator.writeStartObject();
+            generator.writeObjectField('id', childRelationship.ChildDataSet__c);
+            generator.writeObjectField('name', childRelationship.Name);
+            generator.writeObjectField('relationshipId', childRelationship.Id);
+            generator.writeEndObject();
+        }
+        generator.writeEndArray();
+        
+        generator.writeFieldName('parentDataSetRelationships');
+        generator.writeStartArray();
+        for( Relationship__c parentRelationship : dataSet.ParentRelationships__r ) {
+            generator.writeStartObject();
+            generator.writeObjectField('id', parentRelationship.ParentDataSet__c);
+            generator.writeObjectField('name', parentRelationship.Name);
+            generator.writeObjectField('relationshipId', parentRelationship.Id);
+            generator.writeEndObject();
+        }
+        generator.writeEndArray();
+        
+        generator.writeEndObject();
+        
+        for( Relationship__c childRelationship : dataSet.ChildRelationships__r ) {
+            processDataSet(childRelationship.ChildDataSet__c, generator, coveredDataSets, cachedDataSets, rootDataSet);
+        }
+        
+        for( Relationship__c parentRelationship : dataSet.ParentRelationships__r ) {
+            processDataSet(parentRelationship.ParentDataSet__c, generator, coveredDataSets, cachedDataSets, rootDataSet);
+        }
+    }
+    
+    //MD-74
+    private static void processDataSet(Id dataSetId, 
+    JSONGenerator generator,
+    Set<String> coveredDataSets, 
+    Map<Id,DataSet__c> cachedDataSets,
+    DataSet__c rootDataSet, Map<String, Object> mapFieldDescribe) {
+        if( coveredDataSets.contains( dataSetId ) ) {
+            return;
+        }
+        
+        coveredDataSets.add( dataSetId );
+        
+        DataSet__c dataSet = queryDataSet( dataSetId, cachedDataSets );
 
-                Data_Set_Field__c dataSetField = getDataSetField(dataSet, fieldDescribe.getName());
-                if( dataSetField == null &&
-                    ( ( !fieldDescribe.isUpdateable() && !fieldDescribe.isCreateable() && !isAllowedSystemField ) && fieldDescribe.getName() != 'IsStandard' && !fieldDescribe.isCalculated() ) ) {
-                    continue;
-                } else if( dataSetField == null &&
-                     ( isLookupField && !isAllowedSystemField ) ) {
-                    continue;
-                } else if( dataSetField == null ) {
-                    dataSetField = new Data_Set_Field__c(Name = fieldDescribe.getName(), External_ID__c = false);
-                }
-                dataSetFields.add(dataSetField);
+        String lowerObjectName = dataSet.ObjectName__c.toLowerCase();
+        
+        generator.writeStartObject();
+        generator.writeStringField('id', dataSet.Id);
+        generator.writeStringField('name', dataSet.Name);
+        generator.writeStringField('sobjectName', dataSet.ObjectName__c);
+        generator.writeBooleanField('replicateOwner', dataSet.Replicate_Owner__c);
+        generator.writeBooleanField('replicateRecordType', dataSet.Replicate_Record_Type__c);
+        generator.writeBooleanField('createMissing', dataSet.Create_Missing__c);
+        generator.writeBooleanField('syncPicklistValues', dataSet.Sync_Picklist_Values__c);
+        generator.writeBooleanField('setAuditFields', dataSet.Set_Audit_Fields__c);
+        generator.writeBooleanField('ignoreNamespace', dataSet.Ignore_Namespace__c);
+        generator.writeBooleanField('ignoreRelationshipConstraints', dataSet.Ignore_Relationship_Constraints__c);
+        
+        if( String.isNotBlank( dataSet.Ignore_Namespace_Name__c ) ) {
+            generator.writeStringField('ignoreNamespaceName', dataSet.Ignore_Namespace_Name__c);
+        }
+        
+        if( String.isNotBlank( dataSet.Custom_Upsert_Record_Handling__c ) ) {
+            generator.writeStringField('customUpsertRecordHandling', dataSet.Custom_Upsert_Record_Handling__c);
+        }
+        
+        if( String.isNotBlank( dataSet.Query_Filter__c ) ) {
+            generator.writeStringField('queryFilter', dataSet.Query_Filter__c);
+        }
+        
+        //If all fields option, get latest schema, compare with currently stored fields, throw out deleted fields, add new fields
+        //List<Data_Set_Field__c> savedDataSetFields = DeploymentUtils.queryDataSetFields( dataSet.Id );
+        
+        List<Data_Set_Field__c> dataSetFields;
+
+        if( dataSet.All_Fields__c ) {
+            dataSetFields = new List<Data_Set_Field__c>();
+            Connection__c originConnection = [Select Id, Local_Connection__c,Org_Type__c,Refresh_Token__c,Instance_URL__c from Connection__c where Id =: rootDataSet.Origin_Connection__c];
+            if(originConnection.Local_Connection__c) {
+	            List<Schema.DescribeFieldResult> deployableFieldDescribes = DeploymentUtils.getAllDeployableFields( dataSet.ObjectName__c, rootDataSet.Set_Audit_Fields__c);
+	            for( Schema.DescribeFieldResult fieldDescribe : deployableFieldDescribes ) {
+	                Boolean isLookupField = fieldDescribe.getReferenceTo() != null && fieldDescribe.getReferenceTo().size() > 0;
+	                Boolean isAllowedSystemField = DeploymentUtils.isAllowedSystemField(fieldDescribe, lowerObjectName, rootDataSet.Set_Audit_Fields__c);
+	
+	                Data_Set_Field__c dataSetField = getDataSetField(dataSet, fieldDescribe.getName());
+	                if( dataSetField == null &&
+	                    ( ( !fieldDescribe.isUpdateable() && !fieldDescribe.isCreateable() && !isAllowedSystemField ) && fieldDescribe.getName() != 'IsStandard' && !fieldDescribe.isCalculated() ) ) {
+	                    continue;
+	                } else if( dataSetField == null &&
+	                     ( isLookupField && !isAllowedSystemField ) ) {
+	                    continue;
+	                } else if( dataSetField == null ) {
+	                    dataSetField = new Data_Set_Field__c(Name = fieldDescribe.getName(), External_ID__c = false);
+	                }
+	                dataSetFields.add(dataSetField);
+	            }
+            }
+            else {
+            	List<Object> deployableFieldDescribes = DeploymentUtils.getAllDeployableOriginFields(mapFieldDescribe, dataSet.ObjectName__c, rootDataSet.Set_Audit_Fields__c,originConnection);
+            	for(Object fds: deployableFieldDescribes ) {
+            		Map<String, Object> mapFieldAttributes = (Map<String, Object>)fds;
+            
+	                Boolean isLookupField = ((List<Object>)(mapFieldAttributes.get('referenceTo')) != null && ((List<Object>)mapFieldAttributes.get('referenceTo')).size() > 0) ;
+	                Boolean isAllowedSystemField = DeploymentUtils.isAllowedSystemField(String.valueOf(mapFieldAttributes.get('name')), lowerObjectName, rootDataSet.Set_Audit_Fields__c);
+	
+	                Data_Set_Field__c dataSetField = getDataSetField(dataSet, String.valueOf(mapFieldAttributes.get('name')));
+	                
+	                if( dataSetField == null &&
+	                    ( ( !Boolean.valueOf(mapFieldAttributes.get('updateable')) && !Boolean.valueOf(mapFieldAttributes.get('createable')) && !isAllowedSystemField ) && String.valueOf(mapFieldAttributes.get('name')) != 'IsStandard' && !Boolean.valueOf(mapFieldAttributes.get('calculated')) ) ) {
+	                    continue;
+	                } else if( dataSetField == null &&
+	                     ( isLookupField && !isAllowedSystemField ) ) {
+	                    continue;
+	                } else if( dataSetField == null ) {
+	                    dataSetField = new Data_Set_Field__c(Name = String.valueOf(mapFieldAttributes.get('name')), External_ID__c = false);
+	                }
+	                dataSetFields.add(dataSetField);
+	            }
             }
             
         } else {
@@ -626,6 +895,7 @@ public with sharing class DeploymentUtils {
             processDataSet(parentRelationship.ParentDataSet__c, generator, coveredDataSets, cachedDataSets, rootDataSet);
         }
     }
+    //MD-74
     
     //public static Data_Set_Field__c getDataSetField(List<Data_Set_Field__c> dataSetFields, String fieldName) {
     public static Data_Set_Field__c getDataSetField(DataSet__c dataSet, String fieldName) {

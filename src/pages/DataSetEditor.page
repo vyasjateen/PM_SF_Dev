@@ -32,41 +32,54 @@
             min-width: 0px !important;
             margin-top: 40px !important;
         }
+        .origin-btn {
+            display : none;
+        }
+        
+        .tabblock{
+            position: fixed;
+            z-index: 999999999;
+            width: 100%;
+            top: 0;
+            left: 0;
+            background: rgba(0, 0, 0, 0.29);
+            height: 100%;
+        }
     </style>
     
     <script>
 
-	function setDataSetNameOnHeader(objCalled) {
-		document.getElementById('dataSetHeader').innerHTML = "Data Set - " + objCalled.value;
-	}
-	
+    function setDataSetNameOnHeader(objCalled) {
+        document.getElementById('dataSetHeader').innerHTML = "Data Set - " + objCalled.value;
+    }
+    
         function queryCount(objectName, queryQualifiers) {
-        	/*if(queryQualifiers.trim().length > 0)
-        	{
-        		queryQualifiers = queryQualifiers.toUpperCase();
-        		var orderBy_StartFrom = queryQualifiers.indexOf("ORDER BY");
-        		var limit_StartFrom =  queryQualifiers.indexOf("LIMIT");
-	        	if(orderBy_StartFrom > 0)
-	        		queryQualifiers = queryQualifiers.replace("ORDER BY", ") ORDER BY");
-	        	else if(limit_StartFrom > 0)
-	        		queryQualifiers = queryQualifiers.replace("LIMIT", ") LIMIT");
-	        	else 
-	        		queryQualifiers = queryQualifiers + ")";		
-	        	queryQualifiers = "(" + queryQualifiers;
-	        	
-	        	document.getElementById('{!$Component.theForm.queryFilterInput}').value = queryQualifiers;
-            	}*/
-            	sforce.connection.sessionId = "{!$Api.Session_ID}";
-            	var query = "SELECT count() FROM " + objectName + ( queryQualifiers == null || queryQualifiers == "" ? "" : " WHERE " + queryQualifiers );
+            /*if(queryQualifiers.trim().length > 0)
+            {
+                queryQualifiers = queryQualifiers.toUpperCase();
+                var orderBy_StartFrom = queryQualifiers.indexOf("ORDER BY");
+                var limit_StartFrom =  queryQualifiers.indexOf("LIMIT");
+                if(orderBy_StartFrom > 0)
+                    queryQualifiers = queryQualifiers.replace("ORDER BY", ") ORDER BY");
+                else if(limit_StartFrom > 0)
+                    queryQualifiers = queryQualifiers.replace("LIMIT", ") LIMIT");
+                else 
+                    queryQualifiers = queryQualifiers + ")";        
+                queryQualifiers = "(" + queryQualifiers;
+                
+                document.getElementById('{!$Component.theForm.queryFilterInput}').value = queryQualifiers;
+                }*/
+               /* sforce.connection.sessionId = "{!$Api.Session_ID}";
+                var query = "SELECT count() FROM " + objectName + ( queryQualifiers == null || queryQualifiers == "" ? "" : " WHERE " + queryQualifiers );
             
-            	sforce.connection.query(query,
+                sforce.connection.query(query,
                { onSuccess : queryCountPassed,
                  onFailure : queryCountFailed,
                  source : {
                      output : document.getElementById("output"),
                      startTime : new Date().getTime()
                  }
-           });
+           });*/
         }
         
         function queryCountFailed(error, source) {
@@ -81,7 +94,7 @@
    
         function endDeleteDataSet() {
         
-        	if( (typeof sforce != 'undefined') && (sforce != null) && (sforce.one != null) ) {
+            if( (typeof sforce != 'undefined') && (sforce != null) && (sforce.one != null) ) {
                sforce.one.navigateToURL('#/sObject/DataSet__c/home');
             } else {
                 window.location.href = '{!URLFOR($Action.DataSet__c.Tab,$ObjectType.DataSet__c)}'
@@ -112,37 +125,47 @@
         }
         
         function endDeploy(dataSetId) {
+	        	var ee = document.getElementsByClassName("selectObj")[0];
+	        	var objName = ee.options[ee.selectedIndex].text;
+	        	
             if( (typeof sforce != 'undefined') && (sforce != null) && (sforce.one != null) ) {
-                window.location.href = '/apex/DeployDataSet?id=' + dataSetId + '&showheadersidebar=false&sidebar=false';
+                window.location.href = '/apex/DeployDataSet?id=' + dataSetId + '&showheadersidebar=false&sidebar=false&objName='+objName;
             } else {
-                window.location.href = '/apex/DeployDataSet?id=' + dataSetId;
+                window.location.href = '/apex/DeployDataSet?id=' + dataSetId+'&objName='+objName;
             }
         }
         
         // Changes made by -Priyanka Khandelwal (JIRA - 156) 
         //Function created 
         function cancleDataSet() {
-        	if( confirm('Are you sure, all unsaved changes will be lost?') )  {
-        		if( (typeof sforce != 'undefined') && (sforce != null) && (sforce.one != null) ) {
-	        		console.log('Lightning');
-	        		sforce.one.navigateToURL('#/sObject/DataSet__c/home');
-	        	}
-	        	else {
-	        		console.log('Classic');
-	        		var dataURL = '{!URLFOR($Action.DataSet__c.Tab,$ObjectType.DataSet__c)}';
-	        		var locationReload =  dataURL.split('?')[0];
-	        		window.location.href = locationReload;
-	        	}
-        	}
-        	else {
-        		return false; 
-        	}
+            if( confirm('Are you sure, all unsaved changes will be lost?') )  {
+                if( (typeof sforce != 'undefined') && (sforce != null) && (sforce.one != null) ) {
+                    console.log('Lightning');
+                    sforce.one.navigateToURL('#/sObject/DataSet__c/home');
+                }
+                else {
+                    console.log('Classic');
+                    var dataURL = '{!URLFOR($Action.DataSet__c.Tab,$ObjectType.DataSet__c)}';
+                    var locationReload =  dataURL.split('?')[0];
+                    window.location.href = locationReload;
+                }
+            }
+            else {
+                return false; 
+            }
         }
             
         function toggleFieldSettings() {
             toggleElemVisibility("fieldSettingsDialog");
         }
-        
+        function toggleFieldSettingss() {
+            hideElemVisibility("origin-tab");
+            showElemVisibility("progressSpinner");
+        }
+        function toggleFieldSettingssClose() {
+            
+            showElemVisibility("settingsPanel");
+        }
         function startSave() {
             hideElemVisibility("settingsPanel");
             showElemVisibility("progressSpinner");
@@ -152,16 +175,21 @@
         function endSave() {
             hideElemVisibility("progressSpinner");
             showElemVisibility("settingsPanel");
+            
         }
         
         function startActionSelect() {
-            hideElemVisibility("settingsPanel");
+            //hideElemVisibility("settingsPanel");
             showElemVisibility("progressSpinner");
         }
         
         function endActionSelect() {
             hideElemVisibility("progressSpinner");
-            showElemVisibility("settingsPanel");
+            //showElemVisibility("settingsPanel");
+        }
+        
+        function endbutton() {
+            hideElemVisibility("progressSpinner");
         }
         
         function toggleMainActions() {
@@ -247,6 +275,7 @@
                 hideElemVisibility("tab-fields");
                 hideElemVisibility("tab-parents");
                 hideElemVisibility("tab-children");
+                showElemVisibility("origin-btn");
                 
                 activateElem("tab-settings-item");
                 deactivateElem("tab-fields-item");
@@ -257,6 +286,7 @@
                 hideElemVisibility("tab-settings");
                 hideElemVisibility("tab-parents");
                 hideElemVisibility("tab-children");
+                hideElemVisibility("origin-btn");
                 
                 deactivateElem("tab-settings-item");
                 activateElem("tab-fields-item");
@@ -284,6 +314,10 @@
                 activateElem("tab-children-item");
             }
         }
+        
+        function openOriginorg() {
+            showElemVisibility("origin-tab");
+        }
     </script>
     
     <apex:form id="theForm">
@@ -297,6 +331,7 @@
             <apex:param name="parentSelected" value="parentSelected" assignTo="{!parentSelected}"/>
         </apex:actionFunction>
         <apex:actionFunction name="rerenderFieldSettings" rerender="fieldPanel"/>
+        <apex:actionFunction name="rerenderSettingPanel" rerender="settingsPanel"/>
         <apex:actionFunction action="{!onClickFieldSettings}" name="openFieldSettingsDialog" rerender="fieldPanel" oncomplete="toggleFieldSettings(); return false;">
             <apex:param name="fieldSelected" value="fieldSelected" assignTo="{!fieldSelected}"/>
         </apex:actionFunction>
@@ -319,10 +354,14 @@
         <apex:actionFunction action="{!onErrorQueryFilter}" name="errorQueryCount" rerender="deploymentPreviewPanel,failureAlertOutterPanel,successAlertOutterPanel">
             <apex:param name="countResult" value="{!countResult}" assignTo="{!countResult}"/>
         </apex:actionFunction>
+        <apex:actionFunction action="{!setObjectSchema}" name="setSchemaOfSelectedObject" rerender="progressSpinner,deployObj,objetOption,selecctListOptions,objectFieldsTable,parentsPanel,childrenPanel,fieldPanel,navPanel" oncomplete="endbutton();">
+        </apex:actionFunction>
         
-        <div class="slds">
-            <div id="progressSpinner" class="slds-hide">
-                <div class="slds-grid slds-grid--align-center slds-m-vertical--xx-large">
+        
+        
+        <div class="slds" style="position:relative;">
+            <div id="progressSpinner" class="slds-hide" style="position: absolute;width: 100%;height: 100%;background: rgba(0, 0, 0, 0.11);z-index: 99;">
+                <div class="slds-grid slds-grid--align-center slds-m-vertical--xx-large" style="position: relative;top: 30%;">
                     <div class="slds-spinner--large slds-m-vertical--xx-large">
                         <img class="slds-m-vertical--xx-large" src="/resource/SLDS080/SLDS080/assets/images/spinners/slds_spinner_brand.gif" alt="Loading..." />
                     </div>
@@ -423,10 +462,11 @@
                 <div class="slds-grid slds-m-top--large">
                     <div class="slds-tabs--default">
                         <ul class="slds-tabs--default__nav" role="tablist">
-                            <li id="tab-settings-item" class="slds-tabs__item slds-text-heading--label slds-active" title="Record Configuration" role="presentation"><a href="javascript:openTab(1);" role="tab" tabindex="0" aria-selected="true" aria-controls="tab-settings">Record Configuration</a></li>
+                            <li id="tab-settings-item" class="slds-tabs__item slds-text-heading--label slds-active origin-display" title="Record Configuration" role="presentation"><a href="javascript:openTab(1);" role="tab" tabindex="0" aria-selected="true" aria-controls="tab-settings">Record Configuration</a></li>
                             <li id="tab-fields-item" class="slds-tabs__item slds-text-heading--label" title="Record Fields" role="presentation"><a href="javascript:openTab(2);" role="tab" tabindex="-1" aria-selected="false" aria-controls="tab-fields">Record Fields</a></li>
                             <li id="tab-parents-item" class="slds-tabs__item slds-text-heading--label" title="Parent Records" role="presentation"><a href="javascript:openTab(3);" role="tab" tabindex="-1" aria-selected="false" aria-controls="tab-parents">Parent Records</a></li>
                             <li id="tab-children-item" class="slds-tabs__item slds-text-heading--label" title="Child Records" role="presentation"><a href="javascript:openTab(4);" role="tab" tabindex="-1" aria-selected="false" aria-controls="tab-children">Child Records</a></li>
+                           
                         </ul>
                         <div id="tab-settings" class="slds-tabs__content slds-show" role="tabpanel">
                             <apex:outputPanel id="settingsOutterPanel">
@@ -448,18 +488,21 @@
                                             </div>
                                         </div>
                                     </apex:outputPanel>
+                                    <!--  
                                     <div class="slds-form-element slds-m-top--x-small">
-                                    	<label class="slds-form-element__label" for="selectSample1">Origin Org</label>
-                                    	<div class="slds-form-element__control">
-                                            <apex:selectList id="originList" value="{!selectedoriginConnectionId}" size="1" required="true" styleClass="slds-select"> 
-                                            	<apex:selectOptions value="{!originConnectionOptions}"/>
-                                        	</apex:selectList>
+                                        <label class="slds-form-element__label" for="selectSample1">Origin Org</label>
+                                        <div class="slds-form-element__control">
+                                            <apex:selectList id="originList" value="{!selectedOriginConnectionId}" size="1" required="true" styleClass="slds-select" onchange="setSchemaOfSelectedObject();"> 
+                                                <apex:selectOptions value="{!originConnectionOptions}"/>
+                                            </apex:selectList>
                                         </div>
                                     </div>
-                                    <div class="slds-form-element slds-m-top--x-small">
+                                    -->
+                                   
+                                    <div class="slds-form-element slds-m-top--x-small" id="deployObj">
                                         <label class="slds-form-element__label" for="selectSample1">Deployment Object</label>
-                                        <div class="slds-form-element__control">
-                                            <apex:selectList disabled="{! NOT(objectNode.index == 0) }" value="{!objectNode.dataSetWrapper.dataSet.ObjectName__c}" size="1" required="true" styleClass="slds-select"> 
+                                        <div class="slds-form-element__control" id="objetOption">
+                                            <apex:selectList disabled="{! NOT(objectNode.index == 0) }" value="{!objectNode.dataSetWrapper.dataSet.ObjectName__c}" size="1" required="true" styleClass="slds-select selectObj" id="selecctListOptions"> 
                                                 <apex:selectOptions value="{!objectOptions}"/>
                                                 <apex:actionSupport event="onchange" action="{!onObjectSelect}" rerender="progressSpinner,settingsOutterPanel,successAlertOutterPanel,failureAlertOutterPanel,objectFieldsTable,parentsPanel,childrenPanel,fieldPanel,navPanel" onsubmit="startActionSelect();" oncomplete="endActionSelect();"/> 
                                             </apex:selectList>
@@ -498,6 +541,13 @@
                                 <div class="slds-col--padded slds-size--1-of-1 slds-medium-size--1-of-2">
                                     <apex:outputPanel id="settingsPanel">
                                         <fieldset class="slds-form-element">
+                                            <div>
+                                            <a href="javascript:void(0)" onclick="openOriginorg();" >
+                                            <apex:image title="Select to configure" styleClass="invert-icon clickable-icon" value="/resource/SLDS080/SLDS080/assets/icons/utility/settings_60.png" alt="Settings">
+                                            </apex:image>
+                                            <label> Origin Org</label>
+                                            </a>
+                                            </div>
                                             <div class="slds-form-element__control slds-m-top--small">
                                                 <label class="slds-checkbox">
                                                     <apex:inputField value="{!objectNode.dataSetWrapper.dataSet.Active__c}">
@@ -1017,6 +1067,42 @@
                     </div>
                 </div>
                 </apex:outputPanel>
+                <!-- Origin start -->
+                <div id="origin-tab" class="slds-tabs__content slds-hide tabblock" role="tabpanel">
+                    <apex:outputPanel id="fieldPanelOrigin">
+                        <!-- START OF SETTINGS MODAL -->
+                        <div class="slds slds-container--large slds-container--center">
+                            <div class="main" role="main">
+                                <div id="fieldSettingsDialog" class="">
+                                    <div aria-hidden="false" role="dialog" class="slds-modal slds-fade-in-open">
+                                        <div class="slds-modal__container">
+                                            <div class="slds-modal__header">
+                                                <h2 class="slds-text-heading--medium">Origin Organization</h2>
+                                                <button onclick="toggleFieldSettingssClose();" class="slds-button slds-modal__close">
+                                                    <img src="/resource/SLDS080/SLDS080/assets/icons/action/close_60.png" alt="Close" />
+                                                    <span class="slds-assistive-text">Close</span>
+                                                </button>
+                                            </div>
+                                            <div class="slds-form-element slds-m-top--x-small" style="background: #fff;padding: 30px;margin: 0px;">
+                                                <label class="slds-form-element__label" for="selectSample1">Origin Org</label>
+                                                <div class="slds-form-element__control">
+                                                    <apex:selectList id="originLists" value="{!objectNode.dataSetWrapper.dataSet.Origin_Connection__c}" size="1" required="true" styleClass="slds-select" > 
+                                                        <apex:selectOptions value="{!originConnectionOptions}"/>
+                                                    </apex:selectList>
+                                                </div>
+                                            </div>
+                                            <div class="slds-modal__footer">
+                                                <button onclick="toggleFieldSettingss(); setSchemaOfSelectedObject(); return false;" class="slds-button slds-button--neutral slds-button--brand">Close</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </apex:outputPanel>
+                </div>
+                <!-- Origin end -->
+           
             </div>
         </div>
     </apex:form>
