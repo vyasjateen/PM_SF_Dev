@@ -69,7 +69,7 @@
                 
                 document.getElementById('{!$Component.theForm.queryFilterInput}').value = queryQualifiers;
                 }*/
-               /* sforce.connection.sessionId = "{!$Api.Session_ID}";
+                sforce.connection.sessionId = "{!$Api.Session_ID}";
                 var query = "SELECT count() FROM " + objectName + ( queryQualifiers == null || queryQualifiers == "" ? "" : " WHERE " + queryQualifiers );
             
                 sforce.connection.query(query,
@@ -79,7 +79,7 @@
                      output : document.getElementById("output"),
                      startTime : new Date().getTime()
                  }
-           });*/
+           });
         }
         
         function queryCountFailed(error, source) {
@@ -125,13 +125,10 @@
         }
         
         function endDeploy(dataSetId) {
-                var ee = document.getElementsByClassName("selectObj")[0];
-                var objName = ee.options[ee.selectedIndex].text;
-                
             if( (typeof sforce != 'undefined') && (sforce != null) && (sforce.one != null) ) {
-                window.location.href = '/apex/DeployDataSet?id=' + dataSetId + '&showheadersidebar=false&sidebar=false&objName='+objName;
+                window.location.href = '/apex/DeployDataSet?id=' + dataSetId + '&showheadersidebar=false&sidebar=false';
             } else {
-                window.location.href = '/apex/DeployDataSet?id=' + dataSetId+'&objName='+objName;
+                window.location.href = '/apex/DeployDataSet?id=' + dataSetId;
             }
         }
         
@@ -141,8 +138,7 @@
             if( confirm('Are you sure, all unsaved changes will be lost?') )  {
                 if( (typeof sforce != 'undefined') && (sforce != null) && (sforce.one != null) ) {
                     console.log('Lightning');
-                    //sforce.one.navigateToURL('#/sObject/DataSet__c/home');
-                    sforce.one.navigateToURL('{!URLFOR($Action.DataSet__c.Tab,$ObjectType.DataSet__c)}');
+                    sforce.one.navigateToURL('#/sObject/DataSet__c/home');
                 }
                 else {
                     console.log('Classic');
@@ -161,12 +157,6 @@
         }
         function toggleFieldSettingss() {
             hideElemVisibility("origin-tab");
-            showElemVisibility("progressSpinner");
-            hideElemVisibility("settingsPanel");
-        }
-        function toggleFieldSettingsClose() {
-            hideElemVisibility("origin-tab");
-            showElemVisibility("settingsPanel");
         }
         function startSave() {
             hideElemVisibility("settingsPanel");
@@ -177,7 +167,6 @@
         function endSave() {
             hideElemVisibility("progressSpinner");
             showElemVisibility("settingsPanel");
-            
         }
         
         function startActionSelect() {
@@ -186,11 +175,6 @@
         }
         
         function endActionSelect() {
-            hideElemVisibility("progressSpinner");
-            showElemVisibility("settingsPanel");
-        }
-        
-        function endbutton() {
             hideElemVisibility("progressSpinner");
             showElemVisibility("settingsPanel");
         }
@@ -218,9 +202,7 @@
             }
             
             var elemClass = elem.getAttribute("class");
-            if(!elemClass)
-            	return;
-            	
+            
             if( elemClass.indexOf("slds-active") != -1 ) {
                 elemClass = elemClass.replace("slds-active", "");
                 elem.setAttribute("class", elemClass);
@@ -229,13 +211,8 @@
          
         function activateElem(elemId) {
             var elem = document.getElementById(elemId);
-            if(!elem)
-            	return;
-            	
             var elemClass = elem.getAttribute("class");
-            if(!elemClass)
-            	return;
-            	
+            
             if( elemClass.indexOf("slds-active") == -1 ) {
                 elemClass = elemClass + " slds-active";
                 elem.setAttribute("class", elemClass);
@@ -249,47 +226,33 @@
             }
             
             var elemClass = elem.getAttribute("class");
-            if(!elemClass)
-            	return;
-            	
+            
             if( elemClass.indexOf("slds-show") != -1 ) {
-            	elemClass = elemClass.replace("slds-show", "slds-hide");
+                elemClass = elemClass.replace("slds-show", "slds-hide");
                 elem.setAttribute("class", elemClass);
             }
         }
          
         function showElemVisibility(elemId) {
             var elem = document.getElementById(elemId);
-            if(!elem)
-            	return;
-            	
             var elemClass = elem.getAttribute("class");
-            if(!elemClass)
-            	return;
-            	
+            
             if( elemClass.indexOf("slds-hide") != -1 ) {
-                	elemClass = elemClass.replace("slds-hide", "slds-show");
-                	elem.setAttribute("class", elemClass);
+                elemClass = elemClass.replace("slds-hide", "slds-show");
+                elem.setAttribute("class", elemClass);
             }
         }
         
         function toggleElemVisibility(elemId) {
             var elem = document.getElementById(elemId);
-            if(!elem)
-            	return;
-            	
             var elemClass = elem.getAttribute("class");
-            if(!elemClass)
-            	return;
-            	
-            if(elemClass != null)
-            {
-	            if( elemClass.indexOf("slds-show") != -1 ) {
-	                elemClass = elemClass.replace("slds-show", "slds-hide");
-	            } else {
-	                elemClass = elemClass.replace("slds-hide", "slds-show");
-	            }
+            
+            if( elemClass.indexOf("slds-show") != -1 ) {
+                elemClass = elemClass.replace("slds-show", "slds-hide");
+            } else {
+                elemClass = elemClass.replace("slds-hide", "slds-show");
             }
+            
             elem.setAttribute("class", elemClass);
         }
 
@@ -338,14 +301,9 @@
                 activateElem("tab-children-item");
             }
         }
-        var indexOfOriginOrg = 0;
+        
         function openOriginorg() {
-            if(document.getElementById("j_id0:theForm:originLists").selectedIndex > 0)
-                indexOfOriginOrg = document.getElementById("j_id0:theForm:originLists").selectedIndex;
             showElemVisibility("origin-tab");
-        }
-        function setIndex() {
-             document.getElementById("j_id0:theForm:originLists").selectedIndex = indexOfOriginOrg ;
         }
     </script>
     
@@ -360,7 +318,6 @@
             <apex:param name="parentSelected" value="parentSelected" assignTo="{!parentSelected}"/>
         </apex:actionFunction>
         <apex:actionFunction name="rerenderFieldSettings" rerender="fieldPanel"/>
-        <apex:actionFunction name="rerenderSettingPanel" rerender="settingsPanel"/>
         <apex:actionFunction action="{!onClickFieldSettings}" name="openFieldSettingsDialog" rerender="fieldPanel" oncomplete="toggleFieldSettings(); return false;">
             <apex:param name="fieldSelected" value="fieldSelected" assignTo="{!fieldSelected}"/>
         </apex:actionFunction>
@@ -383,7 +340,7 @@
         <apex:actionFunction action="{!onErrorQueryFilter}" name="errorQueryCount" rerender="deploymentPreviewPanel,failureAlertOutterPanel,successAlertOutterPanel">
             <apex:param name="countResult" value="{!countResult}" assignTo="{!countResult}"/>
         </apex:actionFunction>
-        <apex:actionFunction action="{!setObjectSchema}" name="setSchemaOfSelectedObject" rerender="progressSpinner,deployObj,objetOption,selecctListOptions,objectFieldsTable,parentsPanel,childrenPanel,fieldPanel,navPanel" oncomplete="endbutton();">
+        <apex:actionFunction action="{!setObjectSchema}" name="setSchemaOfSelectedObject" rerender="deployObj,objetOption,selecctListOptions">
         </apex:actionFunction>
         
         
@@ -392,7 +349,7 @@
             <div id="progressSpinner" class="slds-hide">
                 <div class="slds-grid slds-grid--align-center slds-m-vertical--xx-large">
                     <div class="slds-spinner--large slds-m-vertical--xx-large">
-                        <img class="slds-m-vertical--xx-large" src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/images/spinners/slds_spinner_brand.gif')}" alt="Loading..." />
+                        <img class="slds-m-vertical--xx-large" src="/resource/SLDS080/SLDS080/assets/images/spinners/slds_spinner_brand.gif" alt="Loading..." />
                     </div>
                 </div>
             </div>
@@ -435,7 +392,7 @@
                                         <input type="button" onclick="cancleDataSet();" class="slds-button slds-button--neutral" value="Cancel"/>
                                         <div class="slds-button--last">
                                             <button onclick="toggleMainActions(); return false;" class="slds-button slds-button--icon-border-filled">
-                                                <img class="invert-icon" src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/utility/down_60.png')}" alt="Down" />
+                                                <img class="invert-icon" src="/resource/SLDS080/SLDS080/assets/icons/utility/down_60.png" alt="Down" />
                                                 <span class="slds-assistive-text">More Actions</span>
                                             </button>
                                         </div>
@@ -463,7 +420,7 @@
                             <div class="slds-notify slds-notify--alert slds-theme--success slds-theme--inverse-text slds-theme--alert-texture slds-size--1-of-1" role="alert">
                                 <span class="slds-assistive-text">Info</span>
                                 <button onclick="dismissAlert(); return false;" class="slds-button slds-button--icon-inverse slds-notify__close">
-                                    <img src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/action/close_60.png')}" alt="Close" class="slds-button__icon" />
+                                    <img src="/resource/SLDS080/SLDS080/assets/icons/action/close_60.png" alt="Close" class="slds-button__icon" />
                                     <span class="slds-assistive-text">Close</span>
                                 </button>
                                 <h2>{!alertMessage}</h2>
@@ -478,7 +435,7 @@
                             <div class="slds-notify slds-notify--alert slds-theme--error slds-theme--inverse-text slds-theme--alert-texture slds-size--1-of-1" role="alert">
                                 <span class="slds-assistive-text">Info</span>
                                 <button onclick="dismissAlert(); return false;" class="slds-button slds-button--icon-inverse slds-notify__close">
-                                    <img src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/action/close_60.png')}" alt="Close" class="slds-button__icon" />
+                                    <img src="/resource/SLDS080/SLDS080/assets/icons/action/close_60.png" alt="Close" class="slds-button__icon" />
                                     <span class="slds-assistive-text">Close</span>
                                 </button>
                                 <h2>{!alertMessage}</h2>
@@ -495,7 +452,7 @@
                             <li id="tab-fields-item" class="slds-tabs__item slds-text-heading--label" title="Record Fields" role="presentation"><a href="javascript:openTab(2);" role="tab" tabindex="-1" aria-selected="false" aria-controls="tab-fields">Record Fields</a></li>
                             <li id="tab-parents-item" class="slds-tabs__item slds-text-heading--label" title="Parent Records" role="presentation"><a href="javascript:openTab(3);" role="tab" tabindex="-1" aria-selected="false" aria-controls="tab-parents">Parent Records</a></li>
                             <li id="tab-children-item" class="slds-tabs__item slds-text-heading--label" title="Child Records" role="presentation"><a href="javascript:openTab(4);" role="tab" tabindex="-1" aria-selected="false" aria-controls="tab-children">Child Records</a></li>
-                           
+                            <li class="slds-tabs__item slds-text-heading--label slds-show" title="Child Records" role="presentation" id="origin-btn"><a href="javascript:void(0)" onclick="openOriginorg();" class="slds-button slds-button--neutral">Origin Org</a></li>
                         </ul>
                         <div id="tab-settings" class="slds-tabs__content slds-show" role="tabpanel">
                             <apex:outputPanel id="settingsOutterPanel">
@@ -517,7 +474,6 @@
                                             </div>
                                         </div>
                                     </apex:outputPanel>
-                                    <!--  
                                     <div class="slds-form-element slds-m-top--x-small">
                                         <label class="slds-form-element__label" for="selectSample1">Origin Org</label>
                                         <div class="slds-form-element__control">
@@ -526,12 +482,10 @@
                                             </apex:selectList>
                                         </div>
                                     </div>
-                                    -->
-                                   
                                     <div class="slds-form-element slds-m-top--x-small" id="deployObj">
                                         <label class="slds-form-element__label" for="selectSample1">Deployment Object</label>
                                         <div class="slds-form-element__control" id="objetOption">
-                                            <apex:selectList disabled="{! NOT(objectNode.index == 0) }" value="{!objectNode.dataSetWrapper.dataSet.ObjectName__c}" size="1" required="true" styleClass="slds-select selectObj" id="selecctListOptions"> 
+                                            <apex:selectList disabled="{! NOT(objectNode.index == 0) }" value="{!objectNode.dataSetWrapper.dataSet.ObjectName__c}" size="1" required="true" styleClass="slds-select" id="selecctListOptions"> 
                                                 <apex:selectOptions value="{!objectOptions}"/>
                                                 <apex:actionSupport event="onchange" action="{!onObjectSelect}" rerender="progressSpinner,settingsOutterPanel,successAlertOutterPanel,failureAlertOutterPanel,objectFieldsTable,parentsPanel,childrenPanel,fieldPanel,navPanel" onsubmit="startActionSelect();" oncomplete="endActionSelect();"/> 
                                             </apex:selectList>
@@ -570,14 +524,6 @@
                                 <div class="slds-col--padded slds-size--1-of-1 slds-medium-size--1-of-2">
                                     <apex:outputPanel id="settingsPanel">
                                         <fieldset class="slds-form-element">
-                                            <apex:outputPanel id="origin-btn" rendered="{!(objectNode.index == 0) }">
-	                                            <button onclick="openOriginorg(); return false;" class="slds-button slds-button--icon-border-filled slds-button--icon-x-small">
-		                                            <apex:image title="Select to configure" styleClass="invert-icon clickable-icon" value="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/utility/settings_60.png')}" alt="Settings">
-		                                            </apex:image>
-		                                            <span class="slds-assistive-text">Origin Org</span>
-	                                           	</button>
-                                            </apex:outputPanel>
-                                            <br/>
                                             <div class="slds-form-element__control slds-m-top--small">
                                                 <label class="slds-checkbox">
                                                     <apex:inputField value="{!objectNode.dataSetWrapper.dataSet.Active__c}">
@@ -665,7 +611,62 @@
                                         </fieldset>
                                     </apex:outputPanel>
                                 </div>
-                               
+                                <!--  <apex:outputPanel id="overrideAttributesPanel" layout="block" style="margin-top: 10px; background-color: white;" styleClass="bootstrap-sf1" rendered="{! !objectNode.dataSetWrapper.dataSet.Root__c }">
+                                    <label>Inherited Settings</label>
+                                    <div id="overrideActiveInputPanel" class="form-group" style="background-color: white;">
+                                        <div class="checkbox settingsCheckbox">
+                                            <label>
+                                                <apex:inputField value="{!objectNode.dataSetWrapper.dataSet.Override_Root_Settings__c}">
+                                                    Override Settings
+                                                    <apex:actionSupport event="onclick" action="{!toggleOverrideSettings}" rerender="overIgnoreNamespaceNameAll" />
+                                                </apex:inputField>
+                                            </label>
+                                            <div class="checkbox settingsCheckbox">
+                                                <apex:outputPanel layout="block" id="overIgnoreNamespaceNameAll">
+                                                    <apex:outputPanel >
+                                                        <label>
+                                                            <apex:inputCheckbox value="{!objectNode.dataSetWrapper.dataSet.Ignore_Namespace__c}" disabled="{! !objectNode.dataSetWrapper.dataSet.Override_Root_Settings__c }">
+                                                                <apex:actionSupport event="onclick" rerender="overIgnoreNamespaceNameBlock" />
+                                                            </apex:inputCheckbox>
+                                                            Ignore Namespace
+                                                        </label>
+                                                    </apex:outputPanel>
+                                                    <apex:outputPanel id="overIgnoreNamespaceNameBlock" layout="block">
+                                                        <apex:outputPanel layout="block" style="margin-top: 10px;" styleClass="bootstrap-sf1" rendered="{!objectNode.dataSetWrapper.dataSet.Ignore_Namespace__c}">
+                                                            <div class="form-group" style="background-color: white; margin-bottom: 0px;">
+                                                                <apex:inputText disabled="{! !objectNode.dataSetWrapper.dataSet.Override_Root_Settings__c }" html-placeholder="Enter name or leave blank to ignore any namespace for the object and field names..." value="{!objectNode.dataSetWrapper.dataSet.Ignore_Namespace_Name__c}" styleClass="form-control" style="width: 50%;"/>
+                                                            </div>
+                                                        </apex:outputPanel>
+                                                    </apex:outputPanel>
+                                                </apex:outputPanel>
+                                            </div>
+                                            <div class="checkbox settingsCheckbox">
+                                                <apex:outputPanel layout="block" id="overCreateMissing">
+                                                    <apex:outputPanel >
+                                                        <label>
+                                                            <apex:inputCheckbox value="{!objectNode.dataSetWrapper.dataSet.Create_Missing__c}" disabled="{! !objectNode.dataSetWrapper.dataSet.Override_Root_Settings__c }">
+                                                                <apex:actionSupport event="onclick" rerender="overCreateMissingBlock" />
+                                                            </apex:inputCheckbox>
+                                                            Create Missing Fields
+                                                        </label>
+                                                    </apex:outputPanel>
+                                                </apex:outputPanel>
+                                            </div>
+                                            <div class="checkbox settingsCheckbox">
+                                                <apex:outputPanel layout="block" id="overSyncPicklists">
+                                                    <apex:outputPanel >
+                                                        <label>
+                                                            <apex:inputCheckbox value="{!objectNode.dataSetWrapper.dataSet.Create_Missing__c}" disabled="{! !objectNode.dataSetWrapper.dataSet.Override_Root_Settings__c }">
+                                                                <apex:actionSupport event="onclick" rerender="overSyncPicklistsBlock" />
+                                                            </apex:inputCheckbox>
+                                                            Sync Picklist Field Values
+                                                        </label>
+                                                    </apex:outputPanel>
+                                                </apex:outputPanel>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </apex:outputPanel> -->
                             </div>
                             </apex:outputPanel>
                         </div>
@@ -680,7 +681,7 @@
                                                     <div class="slds-modal__header">
                                                         <h2 class="slds-text-heading--medium">Field Settings</h2>
                                                         <button onclick="toggleFieldSettings(); rerenderFieldSettings(); return false;" class="slds-button slds-modal__close">
-                                                            <img src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/action/close_60.png')}" alt="Close" />
+                                                            <img src="/resource/SLDS080/SLDS080/assets/icons/action/close_60.png" alt="Close" />
                                                             <span class="slds-assistive-text">Close</span>
                                                         </button>
                                                     </div>
@@ -872,27 +873,27 @@
                                                     </td>
                                                     <td class="slds-row-action">
                                                         <button onclick="openFieldSettingsDialog('{!fieldWrapper.name}'); return false;" class="slds-button slds-button--icon-border-filled slds-button--icon-x-small">
-                                                            <apex:image title="Select to configure" styleClass="invert-icon clickable-icon" value="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/utility/settings_60.png')}" alt="Settings">
+                                                            <apex:image title="Select to configure" styleClass="invert-icon clickable-icon" value="/resource/SLDS080/SLDS080/assets/icons/utility/settings_60.png" alt="Settings">
                                                             </apex:image>
                                                             <span class="slds-assistive-text">Show More</span>
                                                         </button>
                                                         <apex:outputPanel rendered="{! objectNode.dataSetWrapper.isUpsert && fieldWrapper.isSelectedExternalId }" title="External ID">
-                                                            <img class="invert-icon mark-icon" src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/action/apex_60.png')}" alt="External ID" />
+                                                            <img class="invert-icon mark-icon" src="/resource/SLDS080/SLDS080/assets/icons/action/apex_60.png" alt="External ID" />
                                                         </apex:outputPanel>
                                                         <apex:outputPanel rendered="{! fieldWrapper.isCreateMissing && !objectNode.dataSetWrapper.dataSet.Create_Missing__c }" title="Create Missing">
-                                                            <img class="invert-icon mark-icon" src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/action/new_60.png')}" alt="Create Missing" />
+                                                            <img class="invert-icon mark-icon" src="/resource/SLDS080/SLDS080/assets/icons/action/new_60.png" alt="Create Missing" />
                                                         </apex:outputPanel>
                                                         <apex:outputPanel rendered="{! fieldWrapper.isSyncPicklistValues && !objectNode.dataSetWrapper.dataSet.Sync_Picklist_Values__c }" title="Sync Picklist Values">
-                                                            <img class="invert-icon mark-icon" src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/action/sort_60.png')}" alt="Sync Picklist Values" />
+                                                            <img class="invert-icon mark-icon" src="/resource/SLDS080/SLDS080/assets/icons/action/sort_60.png" alt="Sync Picklist Values" />
                                                         </apex:outputPanel>
                                                         <apex:outputPanel rendered="{! fieldWrapper.isSetEmpty }" title="Set Empty">
-                                                            <img class="invert-icon mark-icon" src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/utility/frozen_60.png')}" alt="Set Empty" />
+                                                            <img class="invert-icon mark-icon" src="/resource/SLDS080/SLDS080/assets/icons/utility/frozen_60.png" alt="Set Empty" />
                                                         </apex:outputPanel>
                                                         <apex:outputPanel rendered="{! fieldWrapper.isScrambleValue }" title="Scramble Value">
-                                                            <img class="invert-icon mark-icon" src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/utility/magicwand_60.png')}" alt="Scramble Value" />
+                                                            <img class="invert-icon mark-icon" src="/resource/SLDS080/SLDS080/assets/icons/utility/magicwand_60.png" alt="Scramble Value" />
                                                         </apex:outputPanel>
                                                         <apex:outputPanel rendered="{! fieldWrapper.isFixedValue }" title="Fixed Value">
-                                                            <img class="invert-icon mark-icon" src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/utility/deprecate_60.png')}" alt="Fixed Value" />
+                                                            <img class="invert-icon mark-icon" src="/resource/SLDS080/SLDS080/assets/icons/utility/deprecate_60.png" alt="Fixed Value" />
                                                         </apex:outputPanel>
                                                     </td>
                                                 </tr>
@@ -1052,26 +1053,23 @@
                                     <div aria-hidden="false" role="dialog" class="slds-modal slds-fade-in-open">
                                         <div class="slds-modal__container">
                                             <div class="slds-modal__header">
-                                               <h2 class="slds-text-heading--medium">Origin Settings</h2>
-                                                <button onclick="setIndex(); toggleFieldSettingsClose();rerenderFieldSettings(); return false;" class="slds-button slds-modal__close">
-                                                    <img src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/action/close_60.png')}" alt="Close" />
+                                                <h2 class="slds-text-heading--medium">Field Settings</h2>
+                                                <button onclick="toggleFieldSettingss(); return false;" class="slds-button slds-modal__close">
+                                                    <img src="/resource/SLDS080/SLDS080/assets/icons/action/close_60.png" alt="Close" />
                                                     <span class="slds-assistive-text">Close</span>
                                                 </button>
                                             </div>
                                             <div class="slds-form-element slds-m-top--x-small" style="background: #fff;padding: 30px;margin: 0px;">
                                                 <label class="slds-form-element__label" for="selectSample1">Origin Org</label>
                                                 <div class="slds-form-element__control">
-                                                    <apex:selectList id="originLists" value="{!objectNode.dataSetWrapper.dataSet.Origin_Connection__c}" size="1" required="true" styleClass="slds-select" > 
+                                                    <apex:selectList id="originLists" value="{!selectedOriginConnectionId}" size="1" required="true" styleClass="slds-select" onchange="setSchemaOfSelectedObject();"> 
                                                         <apex:selectOptions value="{!originConnectionOptions}"/>
                                                     </apex:selectList>
                                                 </div>
                                             </div>
                                             <div class="slds-modal__footer">
-                                            	
-                                                <button onclick="toggleFieldSettingss(); setSchemaOfSelectedObject(); return false;" class="slds-button slds-button--neutral slds-button--brand">Save</button>
-                                                <button onclick="setIndex(); toggleFieldSettingsClose();rerenderFieldSettings(); return false;" class="slds-button slds-button--neutral">Cancel</button>
+                                                <button onclick="toggleFieldSettingss(); return false;" class="slds-button slds-button--neutral slds-button--brand">Close</button>
                                             </div>
-                                            
                                         </div>
                                     </div>
                                 </div>

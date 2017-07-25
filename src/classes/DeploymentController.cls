@@ -1,4 +1,5 @@
 public with sharing class DeploymentController {
+   
     private Connection__c sourceConnection;
     private Connection__c targetConnection;
     private Map<Id,Connection__c> targetConnections;
@@ -25,8 +26,8 @@ public with sharing class DeploymentController {
     //MD-74
     public Connection__c originConn;
     
-    
     public DeploymentController(ApexPages.standardController stdController) {
+        
         Id dataSetId = stdController.getId();
         rootDataSet = DeploymentUtils.queryDataSet(dataSetId, new Map<Id,DataSet__c>());
         
@@ -40,6 +41,7 @@ public with sharing class DeploymentController {
         }
         
         try {
+           
             //sourceConnection = AccessValidationUtilities.queryConnectionsAsUser('where Local_Connection__c = true AND Active__c = true LIMIT 1').get(0);
             localConnnection =  AccessValidationUtilities.queryConnectionsAsUser('where Local_Connection__c = true AND Active__c = true LIMIT 1').get(0);
         } catch (Exception e) {
@@ -77,23 +79,10 @@ public with sharing class DeploymentController {
         }
         else {
             //describe sobject
-            //List<Object> sObjects = ProdlyHttpRequest.doCalloutOrigin(originConnection);
             rootObjectLabel = apexpages.currentpage().getparameters().get('objName');
             
         }
             
-        /*try {
-            rootRecordsCount = AccessValidationUtilities.queryCountAsUser(objectDescribe, rootDataSet.Query_Filter__c);
-        } catch(Exception e) {
-            alertMessage = 'Invalid data set query filter: ' + e.getMessage();
-            isSubmittedStep = false;
-            isAlertShown = true;
-            isDeployStep = false;
-            return;
-        }*/
-        
-        //isSubmittedStep = false;
-        //isDeployStep = true;
         isNoConnectionError = false;
     }
     
@@ -106,71 +95,97 @@ public with sharing class DeploymentController {
             
             //Added By Jatin Vyas - 06/07/2017  
             //Added by 07/04/2017 - MD-241 
-            List<String> connectionId = ((selectedTargetConnectionId.remove('[')).remove(']')).split(',');
+            
+            List<String> connectionIds = ((selectedTargetConnectionId.remove('[')).remove(']')).split(',');
+            
             String deploymentResults = '';
-            for(String st: connectionId) {
-                String targetConnectionId = st.trim();
+            
+            /*
+            	Progress Bar changes
+            */
+            Integer totalRecordSet = 1;
+            
+            Map<Id,Relationship__c> mapParentDataSetRelationshipOneLevel = new Map<Id,Relationship__c>();
+            for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ChildDataSet__r.Active__c = true and ChildDataSet__c =: rootDataSet.Id]){
+                if(rel.ParentDataSet__c != rel.ChildDataSet__c)
+                	mapParentDataSetRelationshipOneLevel.put(rel.ParentDataSet__c, rel);
+            }
+            
+            totalRecordSet += mapParentDataSetRelationshipOneLevel.size();
+            
+            Map<Id,Relationship__c> mapParentDataSetRelationshipTwoLevel = new Map<Id,Relationship__c>();
+            for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ChildDataSet__r.Active__c = true and ChildDataSet__c =: mapParentDataSetRelationshipOneLevel.keySet()]){
+                if(rel.ParentDataSet__c != rel.ChildDataSet__c)
+                mapParentDataSetRelationshipTwoLevel.put(rel.ParentDataSet__c, rel);
+            }
+            
+            totalRecordSet += mapParentDataSetRelationshipTwoLevel.size();
+            
+            Map<Id,Relationship__c> mapChildDataSetRelationshipOneLevel = new Map<Id,Relationship__c>();
+            for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ParentDataSet__r.Active__c = true and ParentDataSet__c =: rootDataSet.Id]){
+            	 if(rel.ParentDataSet__c != rel.ChildDataSet__c)
+                mapChildDataSetRelationshipOneLevel.put(rel.ChildDataSet__c, rel);
+            }
+            totalRecordSet += mapChildDataSetRelationshipOneLevel.size();
+            
+            Map<Id,Relationship__c> mapChildDataSetRelationshipTwoLevel = new Map<Id,Relationship__c>();
+            for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ParentDataSet__r.Active__c = true and ParentDataSet__c IN : mapChildDataSetRelationshipOneLevel.KeySet()]){
+                 if(rel.ParentDataSet__c != rel.ChildDataSet__c)
+                mapChildDataSetRelationshipTwoLevel.put(rel.ChildDataSet__c, rel);
+            }
+            totalRecordSet += mapChildDataSetRelationshipTwoLevel.size();
+            
+            Map<Id,Relationship__c> mapChildDataSetRelationshipThreeLevel = new Map<Id,Relationship__c>();
+            for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ParentDataSet__r.Active__c = true and ParentDataSet__c IN : mapChildDataSetRelationshipTwoLevel.KeySet()]){
+               	 if(rel.ParentDataSet__c != rel.ChildDataSet__c)
+                mapChildDataSetRelationshipThreeLevel.put(rel.ChildDataSet__c, rel);
+            }
+            
+            totalRecordSet += mapChildDataSetRelationshipThreeLevel.size();
+            
+            Connection__c sourceConnection = new Connection__c();
+            if(selectedSourceConnectionId != null && targetConnections.containsKey(selectedSourceConnectionId))
+            	sourceConnection = targetConnections.get(selectedSourceConnectionId);
+            
+            Connection__c localConnection = new Connection__c();
+            List<Connection__c> lcs = AccessValidationUtilities.queryConnectionsAsUser('where Local_Connection__c = true AND Active__c = true LIMIT 1');
+            if(lcs.size() > 0)
+            	localConnection = lcs[0];
+            	
+            Connection__c originConnection = new Connection__c();
+            if(rootDataSet.Origin_Connection__c != null && targetConnections.containsKey(rootDataSet.Origin_Connection__c))
+            	originConnection = targetConnections.get(Id.valueOf(rootDataSet.Origin_Connection__c));
+            
+            Map<Id, Map<String, Map<String,Object>>> mapOriginDescribedSObjectsForMultipleDSs = new Map<Id, Map<String, Map<String,Object>>>();
+            
+            if(!originConn.Local_Connection__c) {
+            
+            	Map<String, Map<String,Object>> mapOriginDescribedSObjectDeploy = new Map<String, Map<String,Object>>();
+            	Map<Id,DataSet__c> cachedDataSets = new Map<Id,DataSet__c>();
+            	Set<String> coveredObjects = new Set<String>();
+            	
+            	mapOriginDescribedSObjectDeploy = DeploymentUtils.originChildParent(rootDataSet.Id, mapOriginDescribedSObjectDeploy, 
+            																		originConnection, cachedDataSets, coveredObjects);
+            	mapOriginDescribedSObjectsForMultipleDSs.put(rootDataSet.Id, mapOriginDescribedSObjectDeploy);
+            }
+        
+            for(String cId : connectionIds) {
                 
+                String targetConnectionId = cId.trim();
                 if(targetConnectionId == selectedSourceConnectionId) {
-                    throw new CustomException('Source and Destination should not be same');
+                    throw new ProdlyCustomException('Source and Destination should not be same');
                 }
                 
-                /*
-                Progress Bar changes
-                */
-                Integer totalRecordSet = 1;
-                
-                Map<Id,Relationship__c> mapParentDataSetRelationship = new Map<Id,Relationship__c>();
-                for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ChildDataSet__c =: rootDataSet.Id]){
-                    mapParentDataSetRelationship.put(rel.ParentDataSet__c, rel);
-                }
-                
-                totalRecordSet += mapParentDataSetRelationship.size();
-                Map<Id,Relationship__c> mapParentDataSetRelationship1 = new Map<Id,Relationship__c>();
-                for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ChildDataSet__c =: mapParentDataSetRelationship.keySet()]){
-                    mapParentDataSetRelationship1.put(rel.ParentDataSet__c, rel);
-                }
-                
-                totalRecordSet += mapParentDataSetRelationship1.size();
-                
-                Map<Id,Relationship__c> mapChildDataSetRelationship = new Map<Id,Relationship__c>();
-                for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ParentDataSet__c =: rootDataSet.Id]){
-                    mapChildDataSetRelationship.put(rel.ChildDataSet__c, rel);
-                }
-                totalRecordSet += mapChildDataSetRelationship.size();
-                Map<Id,Relationship__c> mapChildDataSetRelationship1 = new Map<Id,Relationship__c>();
-                for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ParentDataSet__c IN : mapChildDataSetRelationship.KeySet()]){
-                    mapChildDataSetRelationship1.put(rel.ChildDataSet__c, rel);
-                }
-                totalRecordSet += mapChildDataSetRelationship1.size();
-                Map<Id,Relationship__c> mapChildDataSetRelationship2 = new Map<Id,Relationship__c>();
-                for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ParentDataSet__c IN : mapChildDataSetRelationship1.KeySet()]){
-                    mapChildDataSetRelationship2.put(rel.ChildDataSet__c, rel);
-                }
-                
-                
-                totalRecordSet += mapChildDataSetRelationship2.size();
-                
-                
-                //Connection instance with selected source connection
-                Connection__c sourceConnection = targetConnections.get(selectedSourceConnectionId);
-                
-                //Connection instance for local connection
-                Connection__c localConnection = AccessValidationUtilities.queryConnectionsAsUser('where Local_Connection__c = true AND Active__c = true LIMIT 1').get(0);
-                
-                Connection__c targetConnection = targetConnections.get(Id.valueOf(targetConnectionId));
-                
-                Map<String,Object> mapOriginDescribedSObjectDeploy = ProdlyHttpRequest.describeOriginSObject(targetConnections.get(rootDataSet.Origin_Connection__c), rootDataSet.ObjectName__c);
-                
-            	//Changed By Jatin Vyas - 06/05/2017
+                Connection__c targetConnection = new Connection__c();
+	            if(targetConnectionId != null && targetConnections.containsKey(targetConnectionId))
+	            	targetConnection = targetConnections.get(Id.valueOf(targetConnectionId));
+	            
                 Id deploymentResultId = DeploymentUtils.insertDeploymentResult(selectedSourceConnectionId, targetConnection.Id,totalRecordSet);
                 
-                
-                //Id deploymentResultId = DeploymentUtils.insertDeploymentResult(sourceConnection.Id, targetConnection.Id);
-                
                 JSONGenerator generator = JSON.createGenerator(false);
-                DeploymentUtils.generateDeploymentParameter(new List<DataSet__c>{rootDataSet}, localConnection, sourceConnection, targetConnection, deploymentResultId, generator,mapOriginDescribedSObjectDeploy);
-                
+              	
+              	DeploymentUtils.generateDeploymentParameter(new List<DataSet__c>{rootDataSet}, localConnection, sourceConnection, targetConnection, deploymentResultId, generator, mapOriginDescribedSObjectsForMultipleDSs);
+              		
                 String jsonstring = generator.getAsString();
                 
                 DeploymentUtils.launchDeployment(jsonstring, deploymentResultId);

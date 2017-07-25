@@ -330,7 +330,7 @@ public class ProdlyHttpRequest {
 		        HttpResponse res = http.send(request);
 		        
 		        String body = (res.getBody());
-		        
+		        //System.assert(false, body);
 		        if(res.getStatusCode() == 200 && (body != null || body != '')) { 
 		            Map<String, Object> mapOfResult = (Map<String, Object>)JSON.deserializeUntyped(body);
 		            return mapOfResult;

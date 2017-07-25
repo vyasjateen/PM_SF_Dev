@@ -3,6 +3,7 @@ public with sharing class DeploymentCenterController {
     private Connection__c targetConnection;
     private Map<Id,Connection__c> targetConnections;
     private List<DataSet__c> selectedDataSets;
+    private Map<Id, Map<String, Map<String,Object>>> mapOriginDescribedSObjectsForMultipleDSs;
     
     //Variable added by Jatin Vyas
     private Connection__c localConnection;
@@ -36,73 +37,72 @@ public with sharing class DeploymentCenterController {
     public List<List<DataSetWrapper>> listOfListDataSetWrapper{get; set;}
     public String sortExpression {get; set;}
     public String sortDirection {get; set;}
+    
     public DeploymentCenterController() {
+       
         try {
-            //sourceConnection = AccessValidationUtilities.queryConnectionsAsUser('where Source_Connection__c = true AND Active__c = true LIMIT 1').get(0);
-        } catch (Exception e) {
-            alertMessage = 'An active connection to the current source org must be defined before deployment.';
-            isAlertShown = true;
-            isDeployStep = false;
-            isNoConnectionError = true;
-            return;
+        	targetConnections = new Map<Id,Connection__c>( AccessValidationUtilities.queryConnectionsAsUser('where Active__c = true Order By Name ASC NULLS Last') );
+	        mapOriginDescribedSObjectsForMultipleDSs = new Map<Id, Map<String, Map<String,Object>>>();
+	        
+	        if( targetConnections.values().size() == 0 ) {
+	            isAlertshown = true;
+	            isDeployStep = false;
+	            isNoConnectionError = true;
+	            alertMessage = 'At least one active connection to a target org must be defined before deployment.';
+	            throw new ProdlyCustomException(Label.ERROR_NO_ACTIVE_CONNECTION);
+	        }
+	        
+	        targetConnectionOptions = new List<SelectOption>();
+	        for( Connection__c targetConnection : targetConnections.values() ) {
+	            targetConnectionOptions.add( new SelectOption( targetConnection.Id, targetConnection.Name ) );
+	        }
+	        
+	        Map<String,Schema.DescribeSObjectResult> objectDescribes = DeploymentUtils.getObjectDescribes();
+	
+	        List<DataSet__c> dataSets = AccessValidationUtilities.queryDataSetsAsUser('where Active__c = true order by Name asc');
+	            
+	        dataSetWrappers = new List<DataSetWrapper>();
+	        
+	        Integer index = 0;
+	        for( DataSet__c dataSet : dataSets ) {
+	            Schema.DescribeSObjectResult objectDescribe = objectDescribes.get( dataSet.ObjectName__c );
+	            
+	            DataSetWrapper dataSetWrapper = new DataSetWrapper();
+	            dataSetWrapper.dataSet = dataSet;
+	            dataSetWrapper.objectLabel = objectDescribe == null ? dataSet.ObjectName__c : objectDescribe.getLabel();
+	            dataSetWrapper.objectNamespace = objectDescribe == null ? '' : DeploymentUtils.getNamespace(objectDescribe);
+	            dataSetWrapper.isSelected = false;
+	            dataSetWrapper.index = index++;
+	            
+	            dataSetWrappers.add(dataSetWrapper);
+	        }
+	        
+	        isShowHidden = false;
+	        isNoConnectionError = false;
+	        isAlertShown = false;
+	        isDeployStep = true;
+	        isDeployDisabled = true;
+	        listOfListDataSetWrapper = new List<List<DataSetWrapper>>();
+	        filterDataSets();
+	        //Added by Jatin Vyas
+	        pageNumber = 0;
+	        startNumber = 1;
+	        pageSize =10;
+	        endNumber = pageSize;
+	        totalRecord = filteredDataSetWrappers.size();
+	        if(filteredDataSetWrappers.size() < pageSize) {
+	            
+	            endNumber = filteredDataSetWrappers.size();
+	        }
+	        if(filteredDataSetWrappers.size() == 0)
+	            startNumber = 0;
+	        
+	        inIt();
+        } catch(Exception e) {
+        	
+        	isAlertshown = true;
+            alertMessage = 'Error loading data set: ' + e.getMessage() + ' ' + e.getStackTraceString();
         }
-        
-        targetConnections = new Map<Id,Connection__c>( AccessValidationUtilities.queryConnectionsAsUser('where Active__c = true Order By Name ASC NULLS Last') );
-        
-        if( targetConnections.values().size() == 0 ) {
-            alertMessage = 'At least one active connection to a target org must be defined before deployment.';
-            isAlertshown = true;
-            isDeployStep = false;
-            isNoConnectionError = true;
-            return;
-        }
-        
-        targetConnectionOptions = new List<SelectOption>();
-        for( Connection__c targetConnection : targetConnections.values() ) {
-            targetConnectionOptions.add( new SelectOption( targetConnection.Id, targetConnection.Name ) );
-        }
-        
-        Map<String,Schema.DescribeSObjectResult> objectDescribes = DeploymentUtils.getObjectDescribes();
-
-        List<DataSet__c> dataSets = AccessValidationUtilities.queryDataSetsAsUser('where Active__c = true order by Name asc');
-            
-        dataSetWrappers = new List<DataSetWrapper>();
-        
-        Integer index = 0;
-        for( DataSet__c dataSet : dataSets ) {
-            Schema.DescribeSObjectResult objectDescribe = objectDescribes.get( dataSet.ObjectName__c );
-            
-            DataSetWrapper dataSetWrapper = new DataSetWrapper();
-            dataSetWrapper.dataSet = dataSet;
-            dataSetWrapper.objectLabel = objectDescribe == null ? dataSet.ObjectName__c : objectDescribe.getLabel();
-            dataSetWrapper.objectNamespace = objectDescribe == null ? '' : DeploymentUtils.getNamespace(objectDescribe);
-            dataSetWrapper.isSelected = false;
-            dataSetWrapper.index = index++;
-            
-            dataSetWrappers.add(dataSetWrapper);
-        }
-        
-        isShowHidden = false;
-        isNoConnectionError = false;
-        isAlertShown = false;
-        isDeployStep = true;
-        isDeployDisabled = true;
-        listOfListDataSetWrapper = new List<List<DataSetWrapper>>();
-        filterDataSets();
-        //Added by Jatin Vyas
-        pageNumber = 0;
-        startNumber = 1;
-        pageSize =10;
-        endNumber = pageSize;
-        totalRecord = filteredDataSetWrappers.size();
-        if(filteredDataSetWrappers.size() < pageSize) {
-            
-            endNumber = filteredDataSetWrappers.size();
-        }
-        if(filteredDataSetWrappers.size() == 0)
-            startNumber = 0;
-        
-        inIt();
    }
     /**
      *  @Description    :   Method to use intial page data
@@ -295,6 +295,19 @@ public with sharing class DeploymentCenterController {
         for( DataSetWrapper dataSetWrapper : dataSetWrappers ) {
             if( dataSetWrapper.isSelected ) {
                 selectedDataSets.add( dataSetWrapper.dataSet );
+                
+                Map<Id,DataSet__c> cachedDataSets = new Map<Id,DataSet__c>();
+				Set<String> coveredObjects = new Set<String>();
+                
+                Connection__c originConn = targetConnections.get(dataSetWrapper.dataSet.Origin_Connection__c);
+				
+                if(originConn != null && !originConn.Local_Connection__c) {
+                	
+                	Map<String, Map<String,Object>> mapDSOriginDescribedSObjectDeploy = new Map<String, Map<String,Object>>();
+					mapDSOriginDescribedSObjectDeploy = DeploymentUtils.originChildParent(dataSetWrapper.dataSet.Id, mapDSOriginDescribedSObjectDeploy, 
+																	originConn, cachedDataSets, coveredObjects);
+                	mapOriginDescribedSObjectsForMultipleDSs.put(dataSetWrapper.dataSet.Id, mapDSOriginDescribedSObjectDeploy);
+                }
             }
         }
         
@@ -310,65 +323,43 @@ public with sharing class DeploymentCenterController {
     
         try {
             //Added By Jatin Vyas - 06/07/2017  
-            //Added by 07/04/2017 - MD-241 
-            List<String> connectionId = ((selectedTargetConnectionId.remove('[')).remove(']')).split(',');
+            //Added by 07/04/2017 - MD-241
+            
+		List<String> connectionIds = ((selectedTargetConnectionId.remove('[')).remove(']')).split(',');
+		if(connectionIds.size() == 1 && connectionIds[0].trim() == '')
+            		throw new ProdlyCustomException('Please select at least one Destination Salesforce Organization');
+            	
             String deploymentResults = '';
-            for(String st: connectionId) {
-                String targetConnectionId = st.trim();
+         	/*
+            	Progress Bar
+            */
+            
+            Integer totalRecordSet = selectedDataSets.size();
+            
+            totalRecordSet += numberOfParentDataSet(selectedDataSets);
+            
+            totalRecordSet += numberOfChildDataSet(selectedDataSets);
+            
+            System.debug('DataSet'+totalRecordSet);
+            
+            /*
+            */
+            
+            //Connection instance with selected source connection
+            Connection__c sourceConnection = targetConnections.get(selectedSourceConnectionId);
+            
+            //Connection instance for local connection
+            Connection__c localConnection = AccessValidationUtilities.queryConnectionsAsUser('where Local_Connection__c = true AND Active__c = true LIMIT 1').get(0);
+            
+            for(String connection: connectionIds) {
+                String targetConnectionId = connection.trim();
                 
                 //Added By Jatin Vyas -
                 
-                if(selectedTargetConnectionId == selectedSourceConnectionId) {
-                    throw new CustomException('Source and Destination should not be same');
+                if(targetConnectionId == selectedSourceConnectionId) {
+                    throw new ProdlyCustomException('Source and Destination should not be same');
                 }
                 
-                
-                /*
-                Progress Bar
-                */
-                
-                Integer totalRecordSet = selectedDataSets.size();
-                
-                Map<Id,Relationship__c> mapParentDataSetRelationship = new Map<Id,Relationship__c>();
-                for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ChildDataSet__c =: selectedDataSets]){
-                    mapParentDataSetRelationship.put(rel.ParentDataSet__c, rel);
-                }
-                
-                totalRecordSet += mapParentDataSetRelationship.size();
-                Map<Id,Relationship__c> mapParentDataSetRelationship1 = new Map<Id,Relationship__c>();
-                for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ChildDataSet__c =: mapParentDataSetRelationship.keySet()]){
-                    mapParentDataSetRelationship1.put(rel.ParentDataSet__c, rel);
-                }
-                
-                totalRecordSet += mapParentDataSetRelationship1.size();
-                
-                Map<Id,Relationship__c> mapChildDataSetRelationship = new Map<Id,Relationship__c>();
-                for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ParentDataSet__c IN : selectedDataSets]){
-                    mapChildDataSetRelationship.put(rel.ChildDataSet__c, rel);
-                }
-                totalRecordSet += mapChildDataSetRelationship.size();
-                Map<Id,Relationship__c> mapChildDataSetRelationship1 = new Map<Id,Relationship__c>();
-                for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ParentDataSet__c IN : mapChildDataSetRelationship.KeySet()]){
-                    mapChildDataSetRelationship1.put(rel.ChildDataSet__c, rel);
-                }
-                totalRecordSet += mapChildDataSetRelationship1.size();
-                Map<Id,Relationship__c> mapChildDataSetRelationship2 = new Map<Id,Relationship__c>();
-                for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ParentDataSet__c IN : mapChildDataSetRelationship1.KeySet()]){
-                    mapChildDataSetRelationship2.put(rel.ChildDataSet__c, rel);
-                }
-                totalRecordSet += mapChildDataSetRelationship2.size();
-                
-                System.debug('DataSet'+totalRecordSet);
-                
-                /*
-                */
-                //Connection instance with selected source connection
-                Connection__c sourceConnection = targetConnections.get(selectedSourceConnectionId);
-                
-                //Connection instance for local connection
-                Connection__c localConnection = AccessValidationUtilities.queryConnectionsAsUser('where Local_Connection__c = true AND Active__c = true LIMIT 1').get(0);
-                
-        
                 Connection__c targetConnection = targetConnections.get(Id.valueOf(targetConnectionId));
                 
                 Id deploymentResultId = DeploymentUtils.insertDeploymentResult(selectedSourceConnectionId, targetConnection.Id,totalRecordSet);
@@ -376,7 +367,8 @@ public with sharing class DeploymentCenterController {
                 //Id deploymentResultId = DeploymentUtils.insertDeploymentResult(sourceConnection.Id, targetConnection.Id);
                 
                 JSONGenerator generator = JSON.createGenerator(false);
-                DeploymentUtils.generateDeploymentParameter(selectedDataSets, localConnection, sourceConnection, targetConnection, deploymentResultId, generator);
+                
+                DeploymentUtils.generateDeploymentParameter(selectedDataSets, localConnection, sourceConnection, targetConnection, deploymentResultId, generator, mapOriginDescribedSObjectsForMultipleDSs);
                 
                 String jsonstring = generator.getAsString();
                 
@@ -397,6 +389,56 @@ public with sharing class DeploymentCenterController {
         
         return pageRef;
     }
+    
+    public Integer numberOfParentDataSet(List<DataSet__c> selectedDataSets) {
+    	
+    	Integer totalRecordSet = 0;
+    	if(selectedDataSets.size() > 0) {
+	    	Map<Id,Relationship__c> mapParentDataSetRelationshipOneLevel = new Map<Id,Relationship__c>();
+	        for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ChildDataSet__c =: selectedDataSets]){
+	            if(rel.ParentDataSet__c != rel.ChildDataSet__c)
+	            mapParentDataSetRelationshipOneLevel.put(rel.ParentDataSet__c, rel);
+	        }
+	        
+	        totalRecordSet += mapParentDataSetRelationshipOneLevel.size();
+	        Map<Id,Relationship__c> mapParentDataSetRelationshipTwoLevel = new Map<Id,Relationship__c>();
+	        for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ChildDataSet__c =: mapParentDataSetRelationshipOneLevel.keySet()]){
+	            if(rel.ParentDataSet__c != rel.ChildDataSet__c)
+	            mapParentDataSetRelationshipTwoLevel.put(rel.ParentDataSet__c, rel);
+	        }
+	        
+	        totalRecordSet += mapParentDataSetRelationshipTwoLevel.size();
+    	}
+        return totalRecordSet;
+    }
+    
+    public Integer numberOfChildDataSet(List<DataSet__c> selectedDataSets) {
+    	
+    	Integer totalRecordSet = 0;
+    	if(selectedDataSets.size() > 0) {
+	    	Map<Id,Relationship__c> mapChildDataSetRelationshipOneLevel = new Map<Id,Relationship__c>();
+	        for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ParentDataSet__c IN : selectedDataSets]){
+	            if(rel.ParentDataSet__c != rel.ChildDataSet__c)
+	            mapChildDataSetRelationshipOneLevel.put(rel.ChildDataSet__c, rel);
+	        }
+	        totalRecordSet += mapChildDataSetRelationshipOneLevel.size();
+	        Map<Id,Relationship__c> mapChildDataSetRelationshipTwoLevel = new Map<Id,Relationship__c>();
+	        for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ParentDataSet__c IN : mapChildDataSetRelationshipOneLevel.KeySet()]){
+	            if(rel.ParentDataSet__c != rel.ChildDataSet__c)
+	            mapChildDataSetRelationshipTwoLevel.put(rel.ChildDataSet__c, rel);
+	        }
+	        totalRecordSet += mapChildDataSetRelationshipTwoLevel.size();
+	        Map<Id,Relationship__c> mapChildDataSetRelationshipThreeLevel = new Map<Id,Relationship__c>();
+	        for(Relationship__c rel : [Select id, Name,ChildDataSet__c,ParentDataSet__c from Relationship__c  where ParentDataSet__c IN : mapChildDataSetRelationshipTwoLevel.KeySet()]){
+	            if(rel.ParentDataSet__c != rel.ChildDataSet__c)
+	            mapChildDataSetRelationshipThreeLevel.put(rel.ChildDataSet__c, rel);
+	        }
+	        totalRecordSet += mapChildDataSetRelationshipThreeLevel.size(); 
+	        
+    	}
+        return totalRecordSet;
+    }
+    
     
     public class DataSetWrapper {
         public DataSet__c dataSet { get; set; }

@@ -84,7 +84,7 @@
                                                     </apex:actionFunction>
     
                                                     <!--  Command Button -->
-                                                    <apex:commandButton value="Delete" action="{!delete}"
+                                                    <apex:commandButton value="Delete" action="{!doDelete}"
                                                         styleClass="slds-button slds-button--neutral" />
     
                                                     <apex:commandButton styleClass="slds-button slds-button--neutral" value="Pause"

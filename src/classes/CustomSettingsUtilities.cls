@@ -90,7 +90,10 @@ public with sharing class CustomSettingsUtilities {
             return CustomSettingsUtilities.CLIENT_SECRET_STAGE;
         } else if( instanceType == 'demo' ) {
             return CustomSettingsUtilities.CLIENT_SECRET_DEMO;
-        } else {
+        } else if(instanceType == 'dev' ||
+            instanceType == 'development' ) {
+        	return CustomSettingsUtilities.CLIENT_SECRET_DEV;
+            }else {
             return CustomSettingsUtilities.CLIENT_SECRET_PROD;
         }
     }

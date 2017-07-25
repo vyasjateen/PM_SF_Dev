@@ -46,7 +46,11 @@ public with sharing class NewConnectionController {
         String redirectUrl = NewConnectionController.BASE_REDIRECT_URL;  
         String clientIdEncoded = EncodingUtil.urlEncode(clientId, 'UTF-8');
         String redirectUrlEncoded = EncodingUtil.urlEncode(redirectUrl, 'UTF-8');
-        String nameSpaceName = 'null';
+        
+        String strClassName = String.valueOf(this);
+        strClassName = strClassName.substring(0,strClassName.indexOf(':'));
+        String nameSpaceName = DeploymentUtils.getNameSpacePrefix(strClassName);
+        
         String promptEncoded = null, stateEncoded = null, loginHint = null;
         if( sourceConnection != null ) {
             promptEncoded = 'login%20consent';

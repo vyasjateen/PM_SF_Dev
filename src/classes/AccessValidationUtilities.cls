@@ -27,14 +27,18 @@ public with sharing class AccessValidationUtilities {
     
     public static SObject[] upsertAsUser(List<SObject> sobjects, Map<String,Schema.DescribeFieldResult> fieldResults) {
         Schema.DescribeSObjectResult objectDescribe = sobjects.getSObjectType().getDescribe();
+        String nameSpace = DeploymentUtils.getNameSpacePrefix('AccessValidationUtilities');
+        if(nameSpace == 'null') 
+            nameSpace = '';
+        
         if( !objectDescribe.isUpdateable() || !objectDescribe.isCreateable() ) {
             throw new AccessValidationException('Permission denied. Unable to upsert record in object: ' + objectDescribe.getName());
         }
         
         for( Schema.DescribeFieldResult fieldResult : fieldResults.values() ) {
             if( fieldResult.isCustom() && ( !fieldResult.isUpdateable() || !fieldResult.isCreateable() ) 
-                && ( !( objectDescribe.getName() == 'Relationship__c' && fieldResult.getName() == 'ParentDataSet__c' ) )
-                && ( !( objectDescribe.getName() == 'Data_Set_Field__c' && fieldResult.getName() == 'Data_Set__c' ) ) ) {
+                && ( !( objectDescribe.getName() == namespace + 'Relationship__c' && fieldResult.getName() == namespace + 'ParentDataSet__c' ) )
+                && ( !( objectDescribe.getName() == namespace + 'Data_Set_Field__c' && fieldResult.getName() == namespace + 'Data_Set__c' ) ) ) {
                 throw new AccessValidationException('Permission denied. Unable to upsert record in object: ' + objectDescribe.getName() + ' and field: ' + fieldResult.getName());
             }
         }

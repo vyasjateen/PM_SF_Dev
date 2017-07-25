@@ -20,7 +20,7 @@
  * See the Apex Language Reference for more information about Testing and Code Coverage.
  */
 @isTest(seeAllData=false)
-private class DeploymentResultExtensionTest{
+private class deploymentResultExtensionTest{
 
     static testmethod void constructorTest() {
         // set up some test data to work with
@@ -43,6 +43,7 @@ private class DeploymentResultExtensionTest{
                                         Refresh_Token__c='1234',
                                         Active__c=true,
                                         Expires_On__c=null,
+                                        Local_Connection__c = true,
                                         OrganizationId__c=UserInfo.getOrganizationId(),
                                         Org_Type__c='Production',
                                         //Source_Connection__c=null,
@@ -53,13 +54,16 @@ private class DeploymentResultExtensionTest{
             
         insert connection;
         
+        DataSet__c dataSetRoot = new DataSet__c(Name = 'ContactDataSet', ObjectName__c = 'contact',Root__c = true, Active__c = true, Origin_Connection__c = connection.Id);
+        insert dataSetRoot;
+        
         // get connection list
         List<Connection__c> con = [Select Id,Name From Connection__c limit 1];
         // create list variable of Deployment_Result__c
-        List<Deployment_Result__c> DeploymentResult =  New List<Deployment_Result__c>();
+        List<Deployment_Result__c> deploymentResult =  New List<Deployment_Result__c>();
         
         // create records in Deployment_Result__c with deployment result status=STARTED
-        DeploymentResult.add(New Deployment_Result__c(
+        deploymentResult.add(New Deployment_Result__c(
             //Name = 'Test Deployment',
             //CurrencyIsoCode='',
             Result__c=null,
@@ -68,42 +72,52 @@ private class DeploymentResultExtensionTest{
             Status__c=ProdlyConstants.STARTED                     
         ));
         // create records in Deployment_Result__c with deployment result status=STOPPED
-        DeploymentResult.add(New Deployment_Result__c(
+        deploymentResult.add(New Deployment_Result__c(
             Result__c=null,
             Target_Connection__c=con[0].Id,   
             Source_Connection__c=con[0].Id,
             Status__c=ProdlyConstants.STOPPED                     
         ));
         // create records in Deployment_Result__c with deployment result status=PAUSED
-        DeploymentResult.add(New Deployment_Result__c(
+        deploymentResult.add(New Deployment_Result__c(
             Result__c=null,
             Target_Connection__c=con[0].Id,   
             Source_Connection__c=con[0].Id,
             Status__c=ProdlyConstants.PAUSED                      
         ));
         // create records in Deployment_Result__c with deployment result status=FINISHED
-        DeploymentResult.add(New Deployment_Result__c(
+        deploymentResult.add(New Deployment_Result__c(
             Result__c=null,
             Target_Connection__c=con[0].Id,   
             Source_Connection__c=con[0].Id,
             Status__c=ProdlyConstants.FINISHED                        
         ));
+        // create records in Deployment_Result__c with deployment result status=FINISHED
+        deploymentResult.add(New Deployment_Result__c(
+            Result__c=null,
+            Target_Connection__c=con[0].Id,   
+            Source_Connection__c=con[0].Id,
+            Status__c= ''                       
+        ));
         try{
-            insert DeploymentResult;  
+            insert deploymentResult;  
         }catch(exception e){
             system.debug(e);
-        }                           
+        }   
+        
+      	Deployment_Data_Set_Result__c dDSR = new Deployment_Data_Set_Result__c(Data_Set__c = dataSetRoot.Id, Deployment_Result__c = deploymentResult[0].Id, Status__c = 'Started');
+        insert dDSR;                        
     
         
         Test.startTest();
         
         // Mockup class - generate test date responce 
         Test.setMock(HttpCalloutMock.class, new ProdlyMockHttpResponseGenerator());
-        //Test.setCurrentPage(Page.DeploymentResults);
+        //Test.setCurrentPage(Page.deploymentResults);
         // set page url parameter
-        System.currentPageReference().getParameters().put('id', DeploymentResult[0].Id);
+        System.currentPageReference().getParameters().put('id', deploymentResult[0].Id);
         // pass deployment result value in a constructor. 
-        DeploymentResultExtension controller = new DeploymentResultExtension(new ApexPages.StandardController(DeploymentResult[0]));
+        deploymentResultExtension controller = new deploymentResultExtension(new ApexPages.StandardController(deploymentResult[0]));
         // start deployment service
         controller.startServiceCall();
         
@@ -119,7 +133,7 @@ private class DeploymentResultExtensionTest{
         // value assignment in a variables 
         String UserID = u.Id;
         String userEmail = u.Email;
-        String deploymentResultId = DeploymentResult[0].Id;
+        String deploymentResultId = deploymentResult[0].Id;
         //-----------------------------------------
         // Frst test request for start deployment service 
         Http h = new Http();        
@@ -159,10 +173,10 @@ private class DeploymentResultExtensionTest{
         //System.assertEquals(ProdlyConstants.STOPPED, res3.getBody());   
         
         // set page url parameter
-        System.currentPageReference().getParameters().put('id', DeploymentResult[1].Id);
+        System.currentPageReference().getParameters().put('id', deploymentResult[1].Id);
         
         // pass deployment result value in a constructor. 
-        DeploymentResultExtension controller1 = new DeploymentResultExtension(new ApexPages.StandardController(DeploymentResult[1]));
+        deploymentResultExtension controller1 = new deploymentResultExtension(new ApexPages.StandardController(deploymentResult[1]));
         
         // resume deployment service
         controller1.resumeService();
@@ -174,10 +188,10 @@ private class DeploymentResultExtensionTest{
         controller1.stopService();
         
         // set page url parameter
-        System.currentPageReference().getParameters().put('id', DeploymentResult[2].Id);
+        System.currentPageReference().getParameters().put('id', deploymentResult[2].Id);
         
         // pass deployment result value in a constructor. 
-        DeploymentResultExtension controller2 = new DeploymentResultExtension(new ApexPages.StandardController(DeploymentResult[2]));
+        deploymentResultExtension controller2 = new deploymentResultExtension(new ApexPages.StandardController(deploymentResult[2]));
         
         // resume deployment service
         controller2.resumeService();
@@ -191,10 +205,10 @@ private class DeploymentResultExtensionTest{
         controller2.stopService();
         
         // set page url parameter
-        System.currentPageReference().getParameters().put('id', DeploymentResult[3].Id);
+        System.currentPageReference().getParameters().put('id', deploymentResult[3].Id);
         
         // pass deployment result value in a constructor. 
-        DeploymentResultExtension controller3= new DeploymentResultExtension(new ApexPages.StandardController(DeploymentResult[3]));    
+        deploymentResultExtension controller3= new deploymentResultExtension(new ApexPages.StandardController(deploymentResult[3]));    
         // resume deployment service
         controller3.resumeService();
         
@@ -204,11 +218,13 @@ private class DeploymentResultExtensionTest{
         // resume deployment service
         controller3.stopService();
         
-        //Update the status iof deployment result to stopped
-        DeploymentResultExtension.updateDRStatus(DeploymentResult[2].Id, ProdlyConstants.STOPPED);
+        controller3.disablePollerFunction();
         
         //Update the status iof deployment result to stopped
-        DeploymentResultExtension.updateDRStatus(DeploymentResult[2].Id, ProdlyConstants.STARTED);
+        deploymentResultExtension.updateDRStatus(deploymentResult[2].Id, ProdlyConstants.STOPPED);
+        
+        //Update the status iof deployment result to stopped
+        deploymentResultExtension.updateDRStatus(deploymentResult[2].Id, ProdlyConstants.STARTED);
                        
         Test.stopTest();
         

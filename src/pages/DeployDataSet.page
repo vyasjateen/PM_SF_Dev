@@ -113,7 +113,7 @@
             <div id="progressSpinner" class="slds-hide">
                 <div class="slds-grid slds-grid--align-center slds-m-vertical--xx-large">
                     <div class="slds-spinner--large slds-m-vertical--xx-large">
-                        <img class="slds-m-vertical--xx-large" src="/resource/SLDS080/SLDS080/assets/images/spinners/slds_spinner_brand.gif" alt="Loading..." />
+                        <img class="slds-m-vertical--xx-large" src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/images/spinners/slds_spinner_brand.gif')}" alt="Loading..." />
                     </div>
                 </div>
             </div>
@@ -122,7 +122,7 @@
                     <div class="slds-notify slds-notify--alert slds-theme--error slds-theme--inverse-text slds-theme--alert-texture slds-size--1-of-1" role="alert">
                         <span class="slds-assistive-text">Info</span>
                         <button onclick="dismissAlert(); return false;" class="slds-button slds-button--icon-inverse slds-notify__close">
-                            <img src="/resource/SLDS080/SLDS080/assets/icons/action/close_60.png" alt="Close" class="slds-button__icon" />
+                            <img src="{!URLFOR($Resource.SLDS080, 'SLDS080/assets/icons/action/close_60.png')}" alt="Close" class="slds-button__icon" />
                             <span class="slds-assistive-text">Close</span>
                         </button>
                         <h2>{!alertMessage}</h2>

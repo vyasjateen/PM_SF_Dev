@@ -8,7 +8,7 @@ global with sharing  class DeploymentService {
 		Id deploymentResultId = DeploymentUtils.insertDeploymentResult(sourceConnection.Id, targetConnection.Id, 1);
 			
 		JSONGenerator generator = JSON.createGenerator(false);
-		DeploymentUtils.generateDeploymentParameter(new List<DataSet__c>{rootDataSet},localConnection, sourceConnection, targetConnection, deploymentResultId, generator);
+		DeploymentUtils.generateDeploymentParameter(new List<DataSet__c>{rootDataSet},localConnection, sourceConnection, targetConnection, deploymentResultId, generator, null);
 			
 		String jsonstring = generator.getAsString();
 			

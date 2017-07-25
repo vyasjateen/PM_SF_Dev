@@ -484,4 +484,16 @@ public class DeploymentResultExtension {
 		}
            
     }
+    
+    public void doDelete() {
+    	try {
+	    	Set<Id> setResultId = new Set<Id>();
+	    	setResultId.add(DeploymentResult.Id);
+	    	Batch_MassDeleteDSR.deleteRecordResult (setResultId);
+    	}
+    	catch(Exception e) {
+    		
+    		System.debug('Error:'+ e.getMessage());
+    	}
+    }
 }

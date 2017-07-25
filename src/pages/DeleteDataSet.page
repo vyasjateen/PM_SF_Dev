@@ -25,18 +25,19 @@
             document.getElementById('progressBarElement').style.width = nextStageNumber + '%';
                     
             setTimeout('progressIndicatorBar(' + nextStageNumber + ')', 200);
-    	}
-    	
-    	function endDelete() {
-    		hideProgressPanel();
-    		window.location.href = '{!URLFOR($Action.DataSet__c.Tab,$ObjectType.DataSet__c)}';
-    	}
-    	
-    	window.onload = function(e) {
-    		console.log("window loaded");
-			showProgressPanel();
-    		progressIndicatorBar(0);
-    		deleteDataSet();
+        }
+        
+        function endDelete() {
+            hideProgressPanel();
+            //window.location.href = '{!URLFOR($Action.DataSet__c.Tab,$ObjectType.DataSet__c)}';
+            sforce.one.navigateToURL('/one/one.app?source=aloha#/sObject/PDDev__DataSet__c/list?filterName=Recent');
+        }
+        
+        window.onload = function(e) {
+            console.log("window loaded");
+            showProgressPanel();
+            progressIndicatorBar(0);
+            deleteDataSet();
         };
     	
 	</script>

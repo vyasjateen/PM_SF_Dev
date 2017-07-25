@@ -44,28 +44,31 @@ public with sharing class DataSetEditorController {
         public Boolean isDeleteCompleted { get; set; }
         Id datasetRecordId;
         
-        
         //MD-74 Start
         private Connection__c originConnection;
+        private Connection__c localConnection;
         private Map<Id,Connection__c> originConnections;
         public List<SelectOption> originConnectionOptions { get; set; }
         public String selectedOriginConnectionId { get; set; }  
         public Map<String, String> mapOriginSchemaByNameAndLabel;
         public Map<String, Object> mapOriginDescribedSObject;
-        private Boolean onLoadEditRequest;
-        
+        List<Object> sObjects;
+        List<Object> onPageSObjects;
         //MD-74 END
         
         public DataSetEditorController(ApexPages.standardController stdController) {
             
             try {
-                //objectOptions = new List<SelectOption>();
-            	objectSelectorPage = 0;
+                objectOptions = new List<SelectOption>();
+            
+                objectSelectorPage = 0;
                 Decimal offset = CustomSettingsUtilities.getInstance().getCustomSettings().Object_Selector_Page_Size__c;
                 OBJECT_PAGE_OFFSET = offset == null ? 900 : Math.abs( Integer.valueOf( CustomSettingsUtilities.getInstance().getCustomSettings().Object_Selector_Page_Size__c ) );
                 
                 //MD-74 Start
                 originConnections = new Map<Id,Connection__c>( AccessValidationUtilities.queryConnectionsAsUser('where  Active__c = true order by Local_Connection__c DESC') );
+                if(originConnections.size() == 0)
+                	throw new ProdlyCustomException(Label.ERROR_NO_ACTIVE_CONNECTION);
                 
                 originConnectionOptions = new List<SelectOption>();
                 for( Connection__c originConnection : originConnections.values() ) {
@@ -76,30 +79,31 @@ public with sharing class DataSetEditorController {
                 mapOriginDescribedSObject = new Map<String, Object>();
                 datasetRecordId = stdController.getId();
                 initDataSet( datasetRecordId );
-       			
-       			//Set the defualt connection
+                
+                //Set the defualt connection
+                localConnection = originConnections.get(Id.valueOf(originConnectionOptions.get(0).getValue()));
                 originConnection = originConnections.get(Id.valueOf(originConnectionOptions.get(0).getValue()));
-               
+                
                 if(objectNode.dataSetWrapper.dataSet.Origin_Connection__c != null)
                     originConnection = originConnections.get(objectNode.dataSetWrapper.dataSet.Origin_Connection__c);
                     
                 if(stdController.getId() != null) {
-                	
-                	onLoadEditRequest = true;
+                    
                     setObjectSchema();
-                    
-                    objectSelect();
-                    
                     isSelectAllFields = checkForLabel();
-                    onLoadEditRequest = false;
                 } else {
                     
                     initObjectSelectors();
                     isSelectAllFields = checkForLabel();
                 }
-               
+                
                 initStep();
-            } catch(Exception e) {
+            } 
+            catch(ProdlyCustomException e) {
+            	isFailureAlertShown = true;
+                alertMessage = 'Error loading data set: ' + e.getMessage();
+            }
+            catch(Exception e) {
                 isFailureAlertShown = true;
                 alertMessage = 'Error loading data set: ' + e.getMessage() + ' ' + e.getStackTraceString();
             }
@@ -110,42 +114,32 @@ public with sharing class DataSetEditorController {
             
             objectOptions = new List<SelectOption>();
             originConnection = new Connection__c();
-            originConnection = originConnections.get(objectNode.dataSetWrapper.dataSet.Origin_Connection__c);
-            //objectNode.dataSetWrapper.dataSet.ObjectName__c = null;
             mapOriginSchemaByNameAndLabel = new Map<String, String>();
-            if(onLoadEditRequest == false) {
-	            clearDataSets();
-	            
-        	}            
-            initDataSet( datasetRecordId );
+            Boolean connectionExists = true;
+            
+            if(objectNode.dataSetWrapper.dataSet.Origin_Connection__c == null)
+             {
+             	connectionExists = false;
+             	objectNode.dataSetWrapper.dataSet.Origin_Connection__c = localConnection.Id;
+             }
+                
+            originConnection = originConnections.get(objectNode.dataSetWrapper.dataSet.Origin_Connection__c);
+            
             //Check for origin Connection
             if(!originConnection.Local_Connection__c) {
                 
-                List<Object> sObjects = new List<Object>();
-       
                 //Create Remote Site Setting
                 RemoteSiteController.createRemoteSiteSettings((originConnection.Name).remove(' '), originConnection.Instance_URL__c,'RemoteSiteSetting for Origin Org');
-       
-                //describe sobject
                 sObjects = ProdlyHttpRequest.doCalloutOrigin(originConnection);
-                
-                //Select option list
-                objectOptions.add(new SelectOption('', '--None--' ));
-                
-                for(Object sObjectInstance : sObjects) {
-                    
-                    Map<String, Object> sObjectAttributes = (Map<String, Object>)sObjectInstance;
-                    mapOriginSchemaByNameAndLabel.put(String.valueOf(sObjectAttributes.get('name')).toLowerCase(), String.valueOf(sObjectAttributes.get('label')));
-                    objectOptions.add( new SelectOption(String.valueOf(sObjectAttributes.get('name')).toLowerCase(), String.valueOf(sObjectAttributes.get('label')) ) );
-                }
-                
-                objectOptions = DeploymentUtils.sortByLabel(objectOptions);
-                
-            	initObjectSelectors();
-               
+                initObjectSelectors();
             } else {
                 
                 initObjectSelectors();
+            }
+            
+            if(!connectionExists) {
+            	
+             	throw new ProdlyCustomException(Label.ERROR_CONNECTION_NOT_FOUND);
             }
         }
         
@@ -155,7 +149,7 @@ public with sharing class DataSetEditorController {
             //Changes made by - PRIYANKA khandelwal - JIRA 165
             
             for( FieldWrapper fieldWrapper : objectNode.filteredFieldWrappers ) {
-               // fieldWrapper.isSelected = true;
+        
                if(!fieldWrapper.isSelected) {
                     isLabelCheck = false;
                     return isLabelCheck;
@@ -173,7 +167,7 @@ public with sharing class DataSetEditorController {
         }
         
         private void initObjectSelectors() {
-            objectOptions = new List<SelectOption>();
+            
             if( objectNode.dataSetWrapper == null ) {
                 return;
             }
@@ -200,59 +194,75 @@ public with sharing class DataSetEditorController {
                     objectSelectorPage++;
                 } else {
                     
+                    onPageSObjects = DeploymentUtils.getVisibleObjectDescribes(objectSelectorPage * OBJECT_PAGE_OFFSET, OBJECT_PAGE_OFFSET, sObjects);
+                    if( objectNode.dataSetWrapper.dataSet.Id == null || objectNode.dataSetWrapper.dataSet.ObjectName__c == NEXT_PAGE_OPTION_VALUE ) { break; }
+                    
                     //If Origin is not a local org
-                    List<Object> sObjects = ProdlyHttpRequest.doCalloutOrigin(originConnection);
-                    if( objectNode.dataSetWrapper.dataSet.Id == null 
-                        || objectNode.dataSetWrapper.dataSet.ObjectName__c == null 
-                        || objectNode.dataSetWrapper.dataSet.ObjectName__c == NEXT_PAGE_OPTION_VALUE ) { 
-                        
-                        break; 
+                    for(Object sObjectInstance : onPageSObjects) {
+                    	
+                    	Map<String, Object> sObjectAttributes = (Map<String, Object>)sObjectInstance;
+        	        	if(objectNode.dataSetWrapper.dataSet.ObjectName__c.toLowerCase() == String.valueOf(sObjectAttributes.get('name')).toLowerCase()) {
+                    		isFound = true;
+                            break;	
+                    	}
                     }
-                     
-                    for(Object sObjectInstance : sObjects) {
-                        
-                        Map<String, Object> sObjectAttributes = (Map<String, Object>)sObjectInstance;
-                        
-                        if( objectNode.dataSetWrapper.dataSet.ObjectName__c.equalsIgnoreCase(String.valueOf(sObjectAttributes.get('name')))) {
-                            
-                            isFound = true;
-                            break;
-                        }
-                    }
-                    if( isFound ) { 
-                        
-                        break; 
-                    }
+                
+	                if( isFound ) { break; }
                     
                     objectSelectorPage++;
                 }
-            }  
-            
-           if(originConnection.Local_Connection__c) {
+                
+                if( isFound ) { 
+				
+					break; 
+				}
+	        }  
+                
+           	objectOptions = new List<SelectOption>();
+           	if(originConnection.Local_Connection__c) {
+           		
                 for( String objectName : objectDescribes.keySet() ) {
                     Schema.DescribeSObjectResult objectDescribe = objectDescribes.get(objectName);
                     
                     //System.debug('DRUDMAN: Adding object option: name: ' + objectName + ' , label: ' + objectDescribe.getLabel());
                     objectOptions.add( new SelectOption(objectName, objectDescribe.getLabel() ) );
                 }
-                objectOptions = DeploymentUtils.sortByLabel(objectOptions);
+            } else {
+           		
+           		for( Object sObjectInstance : onPageSObjects ) {
+                    
+                    Map<String, Object> sObjectAttributes = (Map<String, Object>)sObjectInstance;
+			
+					if(DeploymentUtils.isObjectVisible(sObjectAttributes)) {
+						mapOriginSchemaByNameAndLabel.put(String.valueOf(sObjectAttributes.get('name')).toLowerCase(), String.valueOf(sObjectAttributes.get('label')));
+						objectOptions.add( new SelectOption(String.valueOf(sObjectAttributes.get('name')).toLowerCase(), String.valueOf(sObjectAttributes.get('label')) ) );
+					}
+                }
             }
             
+            if(objectOptions.size() > 1000)
+            	throw new ProdlyCustomException(Label.ERROR_1000_OBJECTS);
+            
+            objectOptions = DeploymentUtils.sortByLabel(objectOptions);
+           	
             if( objectNode.dataSetWrapper.dataSet.ObjectName__c == null ||
                 objectNode.dataSetWrapper.dataSet.ObjectName__c == NEXT_PAGE_OPTION_VALUE ) {
+                	
                 objectNode.dataSetWrapper.dataSet.ObjectName__c = objectOptions.get(0).getValue();
-                addRequiredParentDataSets(objectNode.dataSetWrapper.dataSet.ObjectName__c, objectNode.dataSetWrapper, null, 0);
             }
             
             if( objectOptions.size() == OBJECT_PAGE_OFFSET ) {
                 objectOptions.add( new SelectOption( NEXT_PAGE_OPTION_VALUE, NEXT_PAGE_OPTION_LABEL ) );
             }
-            
+                
             if(originConnection.Local_Connection__c) {
+            	
 	            for( ObjectNode curObjectNode : objectNodes ) {
 	                objectNode = curObjectNode;
 	                
+	            
 	                if( DeploymentUtils.getObjectDescribes().get( curObjectNode.dataSetWrapper.dataSet.ObjectName__c ) == null ) {
+	                    
 	                    dataSetWrappersByObjectName.remove( curObjectNode.dataSetWrapper.dataSet.ObjectName__c.toLowerCase() );
 	                    curObjectNode.dataSetWrapper.dataSet.ObjectName__c = objectOptions.get(0).getValue();
 	                    dataSetWrappersByObjectName.put( curObjectNode.dataSetWrapper.dataSet.ObjectName__c.toLowerCase(), curObjectNode.dataSetWrapper );
@@ -262,9 +272,23 @@ public with sharing class DataSetEditorController {
 	                
 	                objectSelect();
 	            }
-            }
-            else {
-            	objectSelect();
+            } else {
+            	
+            	for( ObjectNode curObjectNode : objectNodes ) {
+	                objectNode = curObjectNode;
+	                
+	            
+	                if(!mapOriginSchemaByNameAndLabel.containsKey(curObjectNode.dataSetWrapper.dataSet.ObjectName__c)) {
+	                    
+	                    dataSetWrappersByObjectName.remove( curObjectNode.dataSetWrapper.dataSet.ObjectName__c.toLowerCase() );
+	                    curObjectNode.dataSetWrapper.dataSet.ObjectName__c = objectOptions.get(0).getValue();
+	                    dataSetWrappersByObjectName.put( curObjectNode.dataSetWrapper.dataSet.ObjectName__c.toLowerCase(), curObjectNode.dataSetWrapper );
+	                    
+	                    clearDataSets();
+	                }
+	                
+	                objectSelect();
+	            }
             }
         }
         
@@ -276,7 +300,7 @@ public with sharing class DataSetEditorController {
             deleteRelationships = new Map<Id,Relationship__c>();
             
             List<DataSetWrapper> dataSetWrappersPaths = new List<DataSetWrapper>();
-        	
+        
             if( dataSetId == null) {
                 DataSetWrapper dataSetWrapper = initNewDataSet();
             
@@ -307,7 +331,6 @@ public with sharing class DataSetEditorController {
                         objectNode = curObjectNode;
                     }   
                 }
-                
             }
         }
         
@@ -319,7 +342,6 @@ public with sharing class DataSetEditorController {
                 return dataSetWrappersById.get(dataSetId);
             }
             
-            //DataSet__c dataSet = DeploymentUtils.queryDataSetAll(dataSetId);
             DataSet__c dataSet = dataSetsById.get(dataSetId);
             
             List<Relationship__c> childRelationships = new List<Relationship__c>();
@@ -337,9 +359,8 @@ public with sharing class DataSetEditorController {
             
             dataSetWrapper.isUpsert = false;
             for( Data_Set_Field__c dataSetField : DeploymentUtils.queryDataSetFields(dataSetId) ) {
-            //for( Data_Set_Field__c dataSetField : dataSet.Data_Set_Fields__r ) {
-            dataSetWrapper.dataSetFields.add(dataSetField);
-    		dataSetWrapper.dataSetFieldsByName.put( dataSetField.Name.toLowerCase(), dataSetField );
+                dataSetWrapper.dataSetFields.add(dataSetField);
+                dataSetWrapper.dataSetFieldsByName.put( dataSetField.Name.toLowerCase(), dataSetField );
     
                 if( dataSetField.External_ID__c ) {
                     dataSetWrapper.isUpsert = true;
@@ -365,7 +386,6 @@ public with sharing class DataSetEditorController {
             }
             
             for( Relationship__c relationship : childRelationships ) {
-            //for( Relationship__c relationship : DeploymentUtils.queryDataSetChildRelationship(dataSetId) ) {
                 RelationshipWrapper relationshipWrapper = relationshipWrappersByRelationshipId.get( relationship.Id );
                 
                 if( relationshipWrapper == null ) {
@@ -376,15 +396,11 @@ public with sharing class DataSetEditorController {
                 }
                 
                 relationshipWrapper.parentDataSetWrapper = dataSetWrapper;
-                
-                
                 relationshipWrapper.childDataSetWrapper = initEditDataSet( relationship.ChildDataSet__r.Id, relationshipWrappersByRelationshipId, dataSetsById, dataSetWrappersPaths );
-                
                 dataSetWrapper.childRelationshipWrappers.add(relationshipWrapper);
             }     
                     
             for( Relationship__c relationship : parentRelationships ) {
-            //for( Relationship__c relationship : DeploymentUtils.queryDataSetParentRelationship(dataSetId) ) {
                 RelationshipWrapper relationshipWrapper = relationshipWrappersByRelationshipId.get( relationship.Id );
                 
                 if( relationshipWrapper == null ) {
@@ -395,16 +411,14 @@ public with sharing class DataSetEditorController {
                 }
                 
                 relationshipWrapper.childDataSetWrapper = dataSetWrapper;
-                
                 relationshipWrapper.parentDataSetWrapper = initEditDataSet( relationship.ParentDataSet__r.Id, relationshipWrappersByRelationshipId, dataSetsById, dataSetWrappersPaths );
-                
                 dataSetWrapper.parentRelationshipWrappers.add(relationshipWrapper);
             }
             
             if( rootDataSet == null ) {
                 dataSetWrappersPaths.remove( dataSetWrappersPaths.size() - 1 );
             }
-            System.assert(false,dataSetWrapper);
+            
             return dataSetWrapper;
         }
         
@@ -461,18 +475,6 @@ public with sharing class DataSetEditorController {
             isFailureAlertShown = true;
             alertMessage = 'Query filter is invalid: ' + countResult;
         }
-        
-        /*public void onUpdateQueryFilter() {
-            try {
-                Schema.DescribeSObjectResult objectDescribe = DeploymentUtils.getObjectDescribes().get( rootDataSet.ObjectName__c );
-                objectNode.dataSetWrapper.setRecordsToDeploy( AccessValidationUtilities.queryCountAsUser(objectDescribe, rootDataSet.Query_Filter__c) );
-                isFailureAlertShown = false;
-            } catch(Exception e) {
-                objectNode.dataSetWrapper.recordsToDeployLabel = 'Query filter is invalid: ' + e.getMessage();
-                isFailureAlertShown = true;
-                alertMessage = 'Query filter is invalid: ' + e.getMessage();
-            }
-        }*/
         
         public void onSelectFieldExternalId() {
             for( FieldWrapper fieldWrapper : objectNode.fieldWrappers ) {
@@ -534,7 +536,8 @@ public with sharing class DataSetEditorController {
         }  
             
         public void onSearchChildren() {
-            String caseInsensSearchTerm = objectSearchTerm.toLowerCase();
+        	
+        	String caseInsensSearchTerm = objectSearchTerm.toLowerCase();
             String caseInsensNamespaceSearchTerm = objectNamespaceSearchTerm == null ? null : objectNamespaceSearchTerm.toLowerCase();
             
             objectNode.filteredChildWrappers = new List<ChildWrapper>();
@@ -588,11 +591,9 @@ public with sharing class DataSetEditorController {
             
             //Changes made by - PRIYANKA khandelwal - JIRA 165
             for( FieldWrapper fieldWrapper : objectNode.fieldWrappers ) {
-               // fieldWrapper.isSelected = true;
-               fieldWrapper.isSelected = objectNode.dataSetWrapper.dataSet.All_Fields__c;
+               fieldWrapper.isSelected = true;
             }
-            //isSelectAllFields = true;
-            isSelectAllFields = objectNode.dataSetWrapper.dataSet.All_Fields__c;
+            isSelectAllFields = true;
             isFailureAlertShown = false;
             alertMessage = null;
         }
@@ -605,8 +606,7 @@ public with sharing class DataSetEditorController {
         }
         
         public void onSelectAllFieldsToggleCheckbox() {
-            //isSelectAllFields = !isSelectAllFields;
-        
+            
             for( FieldWrapper fieldWrapper : objectNode.fieldWrappers ) {
                 fieldWrapper.isSelected = fieldWrapper.isSystemField ? true : isSelectAllFields;
                 
@@ -782,34 +782,13 @@ public with sharing class DataSetEditorController {
             return clonedDataSets;
         }
         
-        /*public Boolean isEditorDirty() {
-            if( String.isBlank( rootDataSet.Id ) ||
-                deleteRelationships.size() > 0 ||
-                deleteDataSets.size() > 0 ) {
-                return true;
-            }
-            
-            for(DataSetWrapper dataSetWrapper : dataSetWrappersByObjectName.values() ) {
-                if( String.isBlank( dataSetWrapper.dataSet.Id ) ||
-                    dataSetWrapper.dataSet.ObjectName__c !=  ) {
-                    
-                }
-            }
-            
-            return false
-        }*/
-            
         public void onSave() {
-            /*if( !isEditorDirty() ) {
-                return;
-            }*/
             
             isFailureAlertShown = false;
             isSuccessAlertShown = false;
             alertMessage = null;
             try {
             if(!isValid()) {
-                    /*onErrorQueryFilter(); */
                     isSuccessAlertShown = false;
                     isFailureAlertShown = true;
                     alertMessage = 'Query filter is invalid';
@@ -818,7 +797,6 @@ public with sharing class DataSetEditorController {
                 onStore();
                 
                 List<DataSet__c> dataSets = new List<DataSet__c>();
-                
                 for(DataSetWrapper dataSetWrapper : dataSetWrappersByObjectName.values() ) {
                     dataSetWrapper.dataSet.ObjectName__c = dataSetWrapper.dataSet.ObjectName__c.toLowerCase();
                     
@@ -930,21 +908,16 @@ public with sharing class DataSetEditorController {
             }
             
             objectNode = objectNodes.get(i-1);
-            
             objectSelectorPage = 0;
     
-            //initObjectSelectors();
-            
             isObjectStep = true;
             isFieldsStep = false;
             isParentStep = false;
             isChildStep = false;  
-            //isSelectAllFields = false;
             isSelectAllFields = checkForLabel();
         }
         
         public void onNavToSection() { 
-            //onUpdateQueryFilter();
                    
             isObjectStep = false;
             isFieldsStep = false;
@@ -991,8 +964,10 @@ public with sharing class DataSetEditorController {
         }
             
         private ChildWrapper getSelectedChildWrapper() {
+            
             for( ChildWrapper childWrapper : objectNode.childWrappers ) {
-                if( childWrapper.relationshipName == childSelected ) {
+            	
+            	if( childWrapper != null && childWrapper.relationshipName == childSelected ) {
                     return childWrapper;
                 }
             }
@@ -1143,8 +1118,6 @@ public with sharing class DataSetEditorController {
             
             objectSelectorPage = 0;
             
-            //initObjectSelectors();
-            
             objectSelect();
     
             onSetAuditFieldsClick();
@@ -1152,12 +1125,13 @@ public with sharing class DataSetEditorController {
             isObjectStep = true;
             isParentStep = false;
             isChildStep = false;   
-            //isSelectAllFields = false;
             isSelectAllFields = checkForLabel();
         }
         
         public void onChildClick() {
+        	
             ChildWrapper selectedChildWrapper = getSelectedChildWrapper();
+            
             if( selectedChildWrapper == null ) {
                 return;
             } if( selectedChildWrapper.isSelected ) {
@@ -1251,6 +1225,7 @@ public with sharing class DataSetEditorController {
                 return;
             }
             
+            
             ChildWrapper selectedChildWrapper = getSelectedChildWrapper();
             
             String childObjectName = selectedChildWrapper.name.toLowerCase();
@@ -1264,6 +1239,9 @@ public with sharing class DataSetEditorController {
             if(originConnection.Local_Connection__c) {
                 Map<String,Schema.DescribeSObjectResult> objectDescribes = DeploymentUtils.getObjectDescribes();
                 Schema.DescribeSObjectResult objectDescribe = objectDescribes.get(objectName);
+                
+                if(objectDescribe == null)
+                	return;
                 
                 if( DeploymentUtils.isObjectVisible(objectDescribe) ) {
                     return;
@@ -1306,10 +1284,9 @@ public with sharing class DataSetEditorController {
             }
             else {
                 Map<String,Object> mapOriginDescribedSObject1 = ProdlyHttpRequest.describeOriginSObject(originConnection, objectName);
-                /*if( DeploymentUtils.isObjectVisible(objectDescribe) ) {
-                    return;
-                }*/
                 
+                if(mapOriginDescribedSObject1 == null)
+                	return;
                 //Get the list of fields to be processed
                 List<Object> fieldsAttributesList = (List<object>)mapOriginDescribedSObject1.get('fields');
             
@@ -1333,8 +1310,6 @@ public with sharing class DataSetEditorController {
                         continue;
                     }
                 
-                    //Schema.sObjectType parentObjectType = fieldDescribe.getReferenceTo().get(0);
-                    //Schema.DescribeSObjectResult parentObjectDescribe = DeploymentUtils.getObjectDescribeByObjectType(parentObjectType);                
                     List<Object> objectsReference = (List<Object>)mapFieldAttributes.get('referenceTo');
                     List<String> referenceObjectName = new List<String>();
                     
@@ -1342,13 +1317,11 @@ public with sharing class DataSetEditorController {
                         referenceObjectName.add(String.valueOf(obj));
                     }
                         
-                    /*Map<String,Object> mapObjectParent = ProdlyHttpRequest.describeOriginSObject(originConnection,referenceObjectName[0]);
-                    */
                     ParentWrapper parentWrapper = new ParentWrapper();
                     parentWrapper.isSelected = true;
                     parentWrapper.name = String.valueOf(mapFieldAttributes.get('name'));
                     if(mapOriginSchemaByNameAndLabel.containsKey(String.valueOf(referenceObjectName[0]).toLowerCase()))
-                    	parentWrapper.parentLabel = mapOriginSchemaByNameAndLabel.get(String.valueOf(referenceObjectName[0]).toLowerCase());
+                        parentWrapper.parentLabel = mapOriginSchemaByNameAndLabel.get(String.valueOf(referenceObjectName[0]).toLowerCase());
                     parentWrapper.parentName = String.valueOf(referenceObjectName[0]);
                     
                     parentSelect(parentWrapper, childDataSetWrapper, depth);
@@ -1418,16 +1391,7 @@ public with sharing class DataSetEditorController {
             if( objectNode.dataSetWrapper.isUpsert &&
                 !isHasExternalId ) {
                 throw new DeploymentUtils.DeploymentException('Please select an external ID field for an upsert data set.');
-            } /*else if( objectNode.dataSetWrapper.dataSet.Set_Audit_Fields__c && 
-                objectNode.dataSetWrapper.dataSet.Custom_Upsert_Record_Handling__c == DataSetEditorController.STANDARD_UPSERT_TYPE ) {
-                throw new DeploymentUtils.DeploymentException('Standard upsert with set audit fields is not supported.');
-            }*/
-            
-            /*if( objectNode.dataSetWrapper.isUpsert &&
-                String.isBlank( objectNode.dataSetWrapper.dataSet.Custom_Upsert_Record_Handling__c ) ) {
-                throw new DeploymentUtils.DeploymentException('Please select a custom upsert record handling option for the data set.');
-            }*/
-            
+            }
             for( DataSetWrapper dataSetWrapper : dataSetWrappersByObjectName.values() ) {
                 if( dataSetWrapper.dataSet.Override_Root_Settings__c ||
                     dataSetWrapper.dataSet.Root__c ) {
@@ -1486,15 +1450,14 @@ public with sharing class DataSetEditorController {
         }
         
         public void onObjectSelect() {
-            if(onLoadEditRequest == false)
-	        	clearDataSets();
-            if(originConnection.Local_Connection__c) {
-                if( objectNode.dataSetWrapper.dataSet.ObjectName__c == NEXT_PAGE_OPTION_VALUE ) {
-                    objectSelectorPage++;
-                    initObjectSelectors();
-                }
+            clearDataSets();
+            
+        	if( objectNode.dataSetWrapper.dataSet.ObjectName__c == NEXT_PAGE_OPTION_VALUE ) {
+                objectSelectorPage++;
+                initObjectSelectors();
+            } else {
+        		objectSelect();    
             }
-            objectSelect();
         }
         
         public void objectSelect() {
@@ -1511,9 +1474,8 @@ public with sharing class DataSetEditorController {
             String selectedObjectName = dataSetWrapper.dataSet.ObjectName__c.toLowerCase();
     
             //TO DO: Handle case where non root node references root node, but then root node changes object type.
-            
             dataSetWrappersByObjectName.put(selectedObjectName, dataSetWrapper);
-           
+            
             if( objectNode.index == 0 &&
                 lastRootObjectName != null &&
                 originConnection.Local_Connection__c) { //For root data set, object name can change, so remove it from the previous name
@@ -1597,18 +1559,23 @@ public with sharing class DataSetEditorController {
                         //Convert the each object in Field Map
                         Map<String, Object> mapFieldAttributes = (Map<String, Object>)fds;
                         
-                        ChildWrapper childWrapper = new ChildWrapper();
+                        String relationshipName = String.valueOf(mapFieldAttributes.get('relationshipName'));
                         
-                        childWrapper.name = String.valueOf(mapFieldAttributes.get('childSObject'));
-                        childWrapper.label = String.valueOf(mapFieldAttributes.get('childSObject'));
-                        if(mapOriginSchemaByNameAndLabel.containsKey(childWrapper.name.toLowerCase()))
-                            childWrapper.label = mapOriginSchemaByNameAndLabel.get(childWrapper.name.toLowerCase());
-                        childWrapper.relationshipFieldName = String.valueOf(mapFieldAttributes.get('field'));
-                        childWrapper.relationshipName = String.valueOf(mapFieldAttributes.get('relationshipName'));
-                        childWrapper.namespace = DeploymentUtils.getNamespace(String.valueOf(mapFieldAttributes.get('childSObject')));
-                        childWrapper.isSelected = isChildSelected(dataSetWrapper, childWrapper);
-                        
-                        objectNode.childWrappers.add(childWrapper);    
+                        if(String.isNotBlank(relationshipName)) {
+	                    
+	                        ChildWrapper childWrapper = new ChildWrapper();
+	                        
+	                        childWrapper.name = String.valueOf(mapFieldAttributes.get('childSObject'));
+	                        childWrapper.label = String.valueOf(mapFieldAttributes.get('childSObject'));
+	                        if(mapOriginSchemaByNameAndLabel.containsKey(childWrapper.name.toLowerCase()))
+	                            childWrapper.label = mapOriginSchemaByNameAndLabel.get(childWrapper.name.toLowerCase());
+	                        childWrapper.relationshipFieldName = String.valueOf(mapFieldAttributes.get('field'));
+	                        childWrapper.relationshipName = relationshipName;
+	                        childWrapper.namespace = DeploymentUtils.getNamespace(String.valueOf(mapFieldAttributes.get('childSObject')));
+	                        childWrapper.isSelected = isChildSelected(dataSetWrapper, childWrapper);
+	                        
+	                        objectNode.childWrappers.add(childWrapper);    
+                    	}
                     }
             
                     objectNode.parentWrappers = (List<ParentWrapper>)DeploymentUtils.sortByLabel(objectNode.parentWrappers, ParentWrapper.class);
@@ -1617,17 +1584,6 @@ public with sharing class DataSetEditorController {
                     objectNode.filteredChildWrappers = objectNode.childWrappers;
                 } 
             }
-            //Trial fix for view state memory error
-            /*for( ObjectNode curObjectNode : objectNodes ) {
-                if( objectNode != curObjectNode ) {
-                    curObjectNode.fieldWrappers = null;   
-                    curObjectNode.filteredFieldWrappers = null;
-                    curObjectNode.parentWrappers = null;
-                    curObjectNode.childWrappers = null;
-                    curObjectNode.filteredChildWrappers = null;
-                }
-            }*/
-            //END trial fix
         }
     
         private void setFilteredObjectFields() {
@@ -1662,14 +1618,11 @@ public with sharing class DataSetEditorController {
                 Boolean isAllowedSystemField = DeploymentUtils.isAllowedSystemField(fieldDescribe, selectedObjectName, rootDataSet.Set_Audit_Fields__c);
     
                 if( !fieldDescribe.isAccessible() ||
-                    //isPolyMorphicLookup ||
                     ( ( isSystemField || isLeadSystemField ) && !isAllowedSystemField ) || 
-                    //( !fieldDescribe.isUpdateable() && !fieldDescribe.isCreateable() && fieldName != 'IsStandard' ) ||
                     fieldDescribe.isAutoNumber() ||
-                    //fieldDescribe.isCalculated() ||
                     fieldDescribe.isDeprecatedAndHidden() ||
                     DeploymentUtils.isFieldBinary(fieldDescribe) ||
-            DeploymentUtils.isFieldAddress(fieldDescribe) ||
+           			DeploymentUtils.isFieldAddress(fieldDescribe) ||
                     DeploymentUtils.isFieldRecordType(fieldDescribe) ) {
                     continue;
                 }
@@ -1758,7 +1711,6 @@ public with sharing class DataSetEditorController {
                 }
                 
                 Boolean isLookupField = ((List<Object>)(mapFieldAttributes.get('referenceTo')) != null && ((List<Object>)mapFieldAttributes.get('referenceTo')).size() > 0) ;
-                // Boolean isPolyMorphicLookup = Boolean.valueOf(mapFieldAttributes.get('namePointing'));
                 Boolean isSystemField = DeploymentUtils.systemFieldNames.contains(String.valueOf(mapFieldAttributes.get('name')));
                 Boolean isLeadSystemField = selectedObjectName == 'lead' && 
                 DeploymentUtils.systemLeadFieldNames.contains(String.valueOf(mapFieldAttributes.get('name')));
@@ -1784,7 +1736,7 @@ public with sharing class DataSetEditorController {
                     fieldWrapper.localName = DeploymentUtils.getLocalName( String.valueof(mapFieldAttributes.get('name')) );
                     fieldWrapper.namespace = DeploymentUtils.getNamespace(String.valueof(mapFieldAttributes.get('name')));
                     fieldWrapper.label = String.valueOf(mapFieldAttributes.get('label'));
-                    fieldWrapper.ftype = DeploymentUtils.fieldTypeMapping.get(String.valueOf( mapFieldAttributes.get('type')) );
+                    fieldWrapper.ftype = DeploymentUtils.fieldTypeMapping.get((String.valueOf( mapFieldAttributes.get('type'))).toUpperCase() );
                     fieldWrapper.isScrambleSupportedType = isFieldScrambleSupportedType(fieldWrapper);
                     fieldWrapper.isUpdateable = Boolean.valueOf(mapFieldAttributes.get('updateable'));
                     fieldWrapper.isSelected = isFieldSelected(dataSetField, dataSetWrapper.dataSet);
@@ -1824,7 +1776,7 @@ public with sharing class DataSetEditorController {
                             lsstr.add(String.valueOf(a));
                         }
                         if(mapOriginSchemaByNameAndLabel.containsKey(String.valueOf(objs[0]).toLowerCase()))
-                        	parentWrapper.parentLabel = mapOriginSchemaByNameAndLabel.get(String.valueOf(objs[0]).toLowerCase());
+                            parentWrapper.parentLabel = mapOriginSchemaByNameAndLabel.get(String.valueOf(objs[0]).toLowerCase());
                         parentWrapper.parentName = String.valueOf(objs[0]);
                     }
                     
@@ -1835,13 +1787,8 @@ public with sharing class DataSetEditorController {
         //MD-74   
         
         private Data_Set_Field__c getDataSetFieldObject(DataSetWrapper dataSetWrapper, String fieldName) {
-           /* for( Data_Set_Field__c dataSetField : dataSetWrapper.dataSetFields ) {
-                if( dataSetField.Name.toLowerCase() == fieldName.toLowerCase() ) {
-                    return dataSetField;
-                }
-            }
-            return null;*/
-        return dataSetWrapper.dataSetFieldsByName.get( fieldName.toLowerCase() );
+           
+        	return dataSetWrapper.dataSetFieldsByName.get( fieldName.toLowerCase() );
         }
     
         private Boolean isFieldScrambleSupportedType(FieldWrapper fieldWrapper) {
